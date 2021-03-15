@@ -50,7 +50,16 @@ chat.get("/chatService.js", async (ctx) => {
   const filename = __dirname + "/smpChatServiceCopy.js";
   const data = fs.readFileSync(filename, "utf8");
   ctx.body = data;
+
 });
+
+chat.get("/chatService.css", (ctx)=> {
+  console.log("in?");
+  const cssName = __dirname + "/smpChatService.css";
+  const datacss = fs.readFileSync(cssName, "utf8");
+  ctx.type= "text/css"
+  ctx.body = datacss;
+})
 
 // 채팅 연결 신청
 // chat.get("/", async (ctx) => {
@@ -107,7 +116,7 @@ smpChatIo.on("connection", async (socket) => {
 
   const clientId = socket.handshake.query.CLIENTID;
   const userId = socket.handshake.query.USERID;
-  const nickName = socket.handshake.query.NICKNAME;
+  //const nickName = socket.handshake.query.NICKNAME;
   const managerId = await findUserType(clientId, userId);
   await registerManager(managerId);
   let { chatLog, userType } = "";
@@ -119,7 +128,6 @@ smpChatIo.on("connection", async (socket) => {
     //chatLog = loadClientChatContents(userId);
   }
   socket.emit("initChat", {
-    nickName,
     chatLog,
     userType,
   });
@@ -144,6 +152,7 @@ smpChatIo.on("connection", async (socket) => {
       });
     }
     if (userType === "manager") {
+
     }
   });
 
