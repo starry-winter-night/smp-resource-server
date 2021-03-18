@@ -66,6 +66,7 @@
           errSocketArea();
 
           function ctrlManagerChat(state) {
+            resetHTML();
             drawManagerHTML();
             toggleChatView();
             changeDialogAreaHeight();
@@ -76,7 +77,7 @@
             clientHTML();
           }
 
-          function sendMessageSocket(socket, message) {
+          function sendMessageSocket(message) {
             socket.emit("message", { message });
           }
           function processMessageSend(socket) {
@@ -118,13 +119,13 @@
             socket.on("error", (err) => console.log(err.content));
           }
 
-          function resetHTML(domId) {
+          function resetHTML() {
             const chatBox = document.getElementById(domId);
-            const SMP_CHAT_DIV = document.getElementById("smp_chatDiv");
-            const SMP_CHAT_IMG = document.getElementById("chatBoxImg");
-            if (chatBox && SMP_CHAT_DIV && SMP_CHAT_IMG) {
-              chatBox.removeChild(SMP_CHAT_DIV);
-              chatBox.removeChild(SMP_CHAT_IMG);
+            const section = document.querySelector(".smpChat__section");
+            const icon = document.querySelector(".smpChatIcon");
+            if (chatBox && section && icon) {
+              chatBox.removeChild(section);
+              chatBox.removeChild(icon);
             }
           }
           function divideUserType(data, domId) {
@@ -416,17 +417,17 @@
             }
           }
 
-          function limitTextAreaHeight(msgInput) {
-            if (msgInput.offsetHeight >= 180) {
-              msgInput.style.overflowY = "scroll";
+          function limitTextAreaHeight(input) {
+            if (input.offsetHeight >= 180) {
+              input.style.overflowY = "scroll";
             } else {
-              msgInput.style.overflowY = "hidden";
+              input.style.overflowY = "hidden";
             }
           }
 
-          function focusTextAreaCursor(msgInput) {
-            msgInput.blur();
-            msgInput.focus();
+          function focusTextAreaCursor(input) {
+            input.blur();
+            input.focus();
           }
         }
       },
