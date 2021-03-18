@@ -128,7 +128,7 @@
 .smpChat__connect__switchSpan p {
   font-size: 12px;
   font-weight: 700;
-  margin: 0 4px 0 0;
+  
 }
 
 .smpChat__connect__switchInput {
@@ -136,14 +136,14 @@
 }
 
 .smpChat__connect__switchOff {
-  margin: 0;
   color: #092943;
+  margin: 0 6px 0 0;
 }
 
 .smpChat__connect__switchOn {
-  margin: 0;
   display: none;
   color: #f5f5f6;
+  margin: 0 4px 0 0;
 }
 
 .smpChat__connect__switchInput:checked + .smpChat__connect__switchLabel {
@@ -243,15 +243,18 @@
   left: 0px;
 }
 
-.smpChat__dialog__msgInput {
+.smpChat__dialog__msgTextArea {
   font-family: "Nanum Gothic Coding", monospace;
   width: 240px;
   height: 30px;
+  line-height: 30px;
   border-radius: 0 0 0 0;
   border: 0;
   padding: 0 5px;
   outline: 0;
   margin: 0;
+  resize: none;
+  overflow-y: hidden;
 }
 .smpChat__dialog__sendImg {
   width: 50px;
