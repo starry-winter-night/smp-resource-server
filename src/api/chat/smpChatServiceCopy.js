@@ -348,18 +348,26 @@
               // textarea의 높이 값을 부여하여 자동으로 높이값을 조절하게 한다.
               msgInput.style.height = "0px";
               msgInput.style.height = `${msgInput.scrollHeight}px`;
-              if(msgInput.scrollHeight > inputHeight) { 
-                chatView.style.height = `${chatViewHeight - (msgInput.scrollHeight - inputHeight)}px`
-                footer.style.height = `${footerHeight + (msgInput.scrollHeight - inputHeight)}px`
+              if (msgInput.scrollHeight > inputHeight) {
+                chatView.style.height = `${
+                  chatViewHeight - (msgInput.scrollHeight - inputHeight)
+                }px`;
+                footer.style.height = `${
+                  footerHeight + (msgInput.scrollHeight - inputHeight)
+                }px`;
               }
-              if(msgInput.scrollHeight < inputHeight) {
-                chatView.style.height = `${chatViewHeight + (inputHeight - msgInput.scrollHeight)}px`
-                footer.style.height = `${footerHeight - (inputHeight - msgInput.scrollHeight)}px`
+              if (msgInput.scrollHeight < inputHeight) {
+                chatView.style.height = `${
+                  chatViewHeight + (inputHeight - msgInput.scrollHeight)
+                }px`;
+                footer.style.height = `${
+                  footerHeight - (inputHeight - msgInput.scrollHeight)
+                }px`;
               }
 
               /******** 중요한 부분이라 크게 남긴다. 미래의 나 보아라. ********/
               /*                                                               */
-              /*     text가 늘어나서 줄바꿈이 되면                             */ 
+              /*     text가 늘어나서 줄바꿈이 되면                             */
               /*     currentHeight 와 msgInput.scrollHeight은                  */
               /*     동시에 값이 바뀌지만 inputHeight는 줄이 바뀌고            */
               /*     한번 더 put이 되어야 바뀐다.                              */
@@ -375,11 +383,51 @@
               // console.log("inputHeight:", inputHeight);
               // console.log("e.target.offsetHeigh:", e.target.offsetHeight);
               // console.log("msgInput.scrollHeight:",  msgInput.scrollHeight);
-
+              limitTextAreaHeight(msgInput);
             }
           }
 
-        
+          function lineBreakTextArea() {
+            const msgInput = document.querySelector(
+              ".smpChat__dialog__msgTextArea"
+            );
+            msgInput.addEventListener("keydown", applyLineBreakHeight, false);
+            function applyLineBreakHeight(e) {
+              if (e.ctrlKey && e.key === "Enter") {
+                const footer = document.querySelector(
+                  ".smpChat__dialog__footer"
+                );
+                const chatView = document.querySelector(
+                  ".smpChat__dialog__chatView"
+                );
+
+                const msgInputHeight = e.target.offsetHeight;
+                const footerHeight = footer.offsetHeight;
+                const chatViewHeight = chatView.offsetHeight;
+
+                msgInput.style.height = `${msgInputHeight + 30}px`;
+                footer.style.height = `${footerHeight + 30}px`;
+                chatView.style.height = `${chatViewHeight - 30}px`;
+
+                e.target.value = `${e.target.value}\r\n`;
+                limitTextAreaHeight(msgInput);
+                focusTextAreaCursor(msgInput);
+              }
+            }
+          }
+
+          function limitTextAreaHeight(msgInput) {
+            if (msgInput.offsetHeight >= 180) {
+              msgInput.style.overflowY = "scroll";
+            } else {
+              msgInput.style.overflowY = "hidden";
+            }
+          }
+
+          function focusTextAreaCursor(msgInput) {
+            msgInput.blur();
+            msgInput.focus();
+          }
         }
       },
       client: class Client {
