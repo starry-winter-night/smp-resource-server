@@ -91,6 +91,10 @@ smpChatIo.use(async (socket, next) => {
 smpChatIo.on("connection", async (socket) => {
   console.log("Connected to socket.io SpaceName");
 
+  socket.on("disconnect", (reason) => {
+    console.log(reason);
+  });
+
   socket.emit("message", {
     message: "smp 채팅서버에 접속하였습니다.",
   });

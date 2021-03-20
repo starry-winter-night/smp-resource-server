@@ -25,15 +25,21 @@
 
             const data = await res.json();
 
+            console.log(data);
+
             resetHTML(this.args);
 
-            data.type === "manager" ? managerArea(this.args) : clientArea(this.args);
+            data.type === "manager"
+              ? managerArea(this.args)
+              : clientArea(this.args);
 
             const socket = socketURL(this.args);
 
-            socketReceive(socket);
+            connServer(socket);
 
-            socketSend(socket);
+            //socketReceive(socket);
+
+            //socketSend(socket);
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -112,8 +118,6 @@
     },
   };
 
-  const socketSend = function sendSocketArea() {};
-
   const socketReceive = function receiveSocketContact(socket) {
     socket.on("connect", () => {
       console.log("server connect!!");
@@ -162,24 +166,25 @@
   };
 
   const socketURL = function connectSocketURL({ clientId, apiKey }) {
-    return io(`ws://localhost:7000/${apiKey}?clientId=${clientId}`);
+    return io(`ws://localhost:7000/${apiKey}?clientId=${clientId}`, {
+      autoConnect: false,
+    });
   };
 
-  const managerArea = function ctrlManagerChat({domId}) {
+  const managerArea = function ctrlManagerChat({ domId }) {
     managerHTML(domId);
-    connBtn();
     chatIcon();
     dialogHeight();
     textLine();
   };
 
-  const clientArea = function ctrlClientChat({domId}) {
+  const clientArea = function ctrlClientChat({ domId }) {
     clientHTML();
   };
 
   const socketSend = function sendSocketArea(message) {
     socket.emit("message", { message });
-  }
+  };
 
   function processMessageSend(socket) {
     const sendButton = document.getElementById("smp_messageButton");
@@ -210,16 +215,16 @@
 
   const emptyCheck = function checkEmptyString(data) {
     return typeof data.trim() === "string" && data.trim() !== "" ? true : false;
-  }
+  };
 
   const socketError = function errorSocketArea() {
     socket.on("connect_error", (err) => console.log(err));
     socket.on("connect_failed", (err) => console.log(err));
     socket.on("disconnect", (err) => console.log(err));
     socket.on("error", (err) => console.log(err.content));
-  }
+  };
 
-  const resetHTML = function resetHTML({domId}) {
+  const resetHTML = function resetHTML({ domId }) {
     const chatBox = document.getElementById(domId);
     const section = document.querySelector(".smpChat__section");
     const icon = document.querySelector(".smpChatIcon");
@@ -514,10 +519,15 @@
     input.focus();
   };
 
-  const connBtn = function ctrlServerConnectBtn() {
+  const connServer = function ctrlServerConnectBtn(socket) {
     const checkbox = document.querySelector(".smpChat__connect__switchInput");
     checkbox.addEventListener("click", () => {
-      socket.emit("connect", { connect: checkbox.checked });
+      if (!checkbox.checked) {
+        socket.close();
+        return;
+      }
+
+      socket.open();
     });
   };
 
