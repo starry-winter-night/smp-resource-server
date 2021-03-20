@@ -25,21 +25,19 @@
 
             const data = await res.json();
 
-            console.log(data);
-
             resetHTML(this.args);
 
             data.type === "manager"
               ? managerArea(this.args)
               : clientArea(this.args);
 
-            const socket = socketURL(this.args);
+            const socket = await socketURL(this.args);
 
-            connServer(socket);
+            switchState(data);
 
-            //socketReceive(socket);
+            connServer(socket, data);
 
-            //socketSend(socket);
+            socketReceive(socket);
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -123,9 +121,9 @@
       console.log("server connect!!");
     });
 
-    socket.on("initChat", (data) => {
-      //processMessageSend(socket);
-    });
+    // socket.on("switch", (data) => {
+
+    // });
 
     socket.on("preview", (previewData) => {
       console.log(previewData);
@@ -162,7 +160,7 @@
   };
 
   const serverURL = function connectServerURL({ clientId, userId }) {
-    return `http://localhost:5000/chat?clientId=${clientId}&userId=${userId}`;
+    return `http://localhost:5000/smpChat?clientId=${clientId}&userId=${userId}`;
   };
 
   const socketURL = function connectSocketURL({ clientId, apiKey }) {
@@ -182,8 +180,16 @@
     clientHTML();
   };
 
-  const socketSend = function sendSocketArea(message) {
-    socket.emit("message", { message });
+  const socketSend = function sendSocketArea(socket) {
+    return {
+      serverSwitch: (order) => {
+        console.log(order);
+        socket.emit("switch", { order });
+      },
+      message: (msg) => {
+        socket.emit("message", { msg });
+      },
+    };
   };
 
   function processMessageSend(socket) {
@@ -385,12 +391,12 @@
 
     smpChatIconImg.setAttribute(
       "src",
-      "http://localhost:5000/chat/image?name=chat.png"
+      "http://localhost:5000/smpChat/image?name=chat.png"
     );
     smpChatIconImg.setAttribute("alt", "채팅아이콘");
     closeImg.setAttribute(
       "src",
-      "http://localhost:5000/chat/image?name=close.png"
+      "http://localhost:5000/smpChat/image?name=close.png"
     );
     closeImg.setAttribute("alt", "채팅창닫기 아이콘");
 
@@ -402,11 +408,11 @@
     /* dialog */
     dialogChatAddImg.setAttribute(
       "src",
-      "http://localhost:5000/chat/image?name=plus.png"
+      "http://localhost:5000/smpChat/image?name=plus.png"
     );
     dialogChatMsgSend.setAttribute(
       "src",
-      "http://localhost:5000/chat/image?name=sendBtn.png"
+      "http://localhost:5000/smpChat/image?name=sendBtn.png"
     );
     dialogChatAddLabel.htmlFor = "smp_chat_addImg";
     dialogChatAddInput.type = "file";
@@ -519,16 +525,31 @@
     input.focus();
   };
 
-  const connServer = function ctrlServerConnectBtn(socket) {
+  const connServer = function ctrlServerConnect(socket, { state }) {
     const checkbox = document.querySelector(".smpChat__connect__switchInput");
-    checkbox.addEventListener("click", () => {
+    checkbox.addEventListener("click", async () => {
       if (!checkbox.checked) {
+        socketSend(socket).serverSwitch(false);
         socket.close();
         return;
       }
-
       socket.open();
+      socketSend(socket).serverSwitch(true);
     });
+    if (state === "on") {
+      socket.open();
+    }
+  };
+
+  const switchState = function changeSwitchState({ state }) {
+    const checkbox = document.querySelector(".smpChat__connect__switchInput");
+    if (state === "on") {
+      checkbox.checked = true;
+    }
+
+    if (state === "off") {
+      checkbox.checked = false;
+    }
   };
 
   class SmpChatError extends Error {

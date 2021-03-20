@@ -9,6 +9,7 @@ import {
 } from "./chat.functions";
 import ManagerChat from "../../models/chatManager";
 import ClientChat from "../../models/chatClient";
+import SmpChat from "../../models/smpChat";
 import Member from "../../models/member";
 import Oauth from "../../models/oauth";
 
@@ -57,117 +58,87 @@ export const registerOption = async (clientId, option) => {
   }
 };
 
-export const registerManager = async (managerId) => {
-  const manager = await ManagerChat.findByUsername(managerId);
-  if (!manager && typeof managerId === "string") {
-    const managerChat = new ManagerChat({
-      managerId,
-      managerMember: "",
+export const verifyClientId = async (clientId) => {
+  const member = await Member.findByClientId(clientId);
+  if (member === null) {
+    return {
+      result: false,
+      code: 500,
+      message: "등록된 CLIENTID가 아닙니다.",
+    };
+  }
+
+  // 최초등록
+  const info = await SmpChat.findByClientId(clientId);
+  if (info === null) {
+    const smpChat = new SmpChat({
+      clientId,
+      chatApiKey: member.client.chatApiKey,
     });
-    await managerChat.save();
+
+    await smpChat.save();
+  }
+
+  return { result: true };
+};
+
+export const judgeUser = async (clientId, userId) => {
+  const oauth = await Oauth.findByClientId(clientId);
+
+  if (oauth === null) {
+    return false;
+  }
+
+  const idChecked = checkManagerId(oauth.client.chatManagerList, userId);
+  let userType = "";
+
+  if (!idChecked) {
+    userType = "client";
+  }
+
+  userType = "manager";
+
+  return userType;
+};
+
+export const registerManager = async (clientId, managerId) => {
+  const info = await SmpChat.findByUsername(managerId);
+
+  if (info === null && typeof managerId === "string") {
+    const smpChat = await SmpChat.findByClientId(clientId);
+
+    await smpChat.updateByServerState("off");
+    await smpChat.updateByManagerIds(managerId);
   }
   return;
 };
 
-export const verifyClientId = async (clientId) => {
-  // 클라이언트 id가 chat에 등록되어있는지 확인
-  const manager = await ManagerChat.findByClientId(clientId);
-  const member = await Member.findByClientId(clientId);
-  let { message, code, result } = "";
-  if (member === null) {
-    result = false;
-    code = 500;
-    message = "등록된 CLIENTID가 아닙니다.";
-  } else {
-    // 1-1 최초등록
-    if (manager === null) {
-      const managerChat = new ManagerChat({
-        clientId,
-        chatApiKey: member.client.chatApiKey,
-      });
-      await managerChat.save();
-    }
-    result = true;
+export const verifyManagerInfo = async (clientId, apiKey) => {
+  const info = await SmpChat.findByChatApiKey(apiKey);
+
+  if (info === null) {
+    return { message: "apiKey가 일치하지 않습니다.", result: false };
   }
-  const data = { result, message, code };
-  return data;
+
+  if (info.clientId !== clientId) {
+    return { message: "clientId가 일치하지 않습니다.", result: false };
+  }
+
+  return { result: true };
 };
 
-export const verifyManagerInfo = async (clientId, apiKey) => {
-  let result = false;
-  let message = "";
-  const oauth = await Oauth.findByChatApiKey(apiKey);
-  if (oauth === null) {
-    message = "등록된 apikey가 아닙니다.";
-  } else if (clientId !== oauth.client.clientId) {
-    message = "apiKey정보가 일치하지 않습니다.";
-  } else {
-    result = true;
-  }
-  const data = { result, message };
-  return data;
+export const getServerState = async (managerId) => {
+  const info = await SmpChat.findByUsername(managerId);
+  return info.serverState;
+};
 
-  // const managerInfo = await ManagerChat.findByClientId(clientId);
-  // const oauth = await Oauth.findByClientId(clientId);
-  // let { message, code } = "";
-  // let result = true;
-  // let state = chatState;
-  // if (oauth === null) {
-  //   result = false;
-  //   code = 500;
-  //   message = "등록된 CLIENTID가 아닙니다.";
-  // } else {
-  //   if (chatState === null) {
-  //     const regState = managerInfo.chatState;
-  //     if (regState === null || !regState) {
-  //       state = "off";
-  //       // off 버튼을 눌러 서버를 직접 끊을 경우
-  //     } else {
-  //       state = regState;
-  //     }
-  //   } else if (chatState === "on") {
-  //     // 관리자 정보 저장.
-  //     const managerId = oauth.client.username;
-  //     const nameSpace = clientId;
-  //     const managerChat = new ManagerChat({
-  //       managerId,
-  //       clientId,
-  //       nameSpace,
-  //       chatState,
-  //     });
+export const setServerState = async (clientId, order) => {
+  const info = await SmpChat.findByClientId(clientId);
+  const state = order ? "on" : "off";
 
-  //     // 최초의 관리자 정보 저장
-  //     if (managerInfo.managerId === undefined) {
-  //       // username index 생성 및 유니크 적용
-  //       await managerChat.collection.createIndex(
-  //         { managerId: 1 },
-  //         { unique: true }
-  //       );
-  //       await managerInfo.updateByManager(managerChat);
+  await info.updateByServerState(state);
 
-  //       //n번째 관리자 정보 저장
-  //     } else {
-  //       if (chatState !== managerInfo.chatState) {
-  //         await managerInfo.updateByChatState(chatState);
-  //       }
-  //     }
-  //     message = "채팅 서버가 정상적으로 연결되었습니다.";
-  //     // 관리자가 직접 서버를 끈 경우
-  //   } else if (chatState === "off") {
-  //     /* db에 연결정보와 받아온 연결정보가 같지 않으면 on을 off로 변경 */
-  //     if (chatState !== managerInfo.chatState) {
-  //       await managerInfo.updateByChatState(chatState);
-  //     } else {
-  //       message = "채팅 서버가 정상적으로 종료되었습니다.";
-  //     }
-  //   } else {
-  //     result = false;
-  //     code = 500;
-  //     message = "chatState 변수가 잘못되었습니다.";
-  //   }
-  // }
-  // const data = { result, state, code, message };
-  // return data;
+  return;
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {
@@ -399,23 +370,4 @@ export const leaveRoom = async (user, socketId) => {
   const roomName = client.room.roomName;
   const data = { result: true, roomName };
   return data;
-};
-
-export const findUserType = async (clientId, userId) => {
-  const oauth = await Oauth.findByClientId(clientId);
-
-  if (oauth === null) {
-    return false;
-  }
-
-  const idChecked = checkManagerId(oauth.client.chatManagerList, userId);
-  let userType = "";
-
-  if (!idChecked) {
-    userType = "client";
-  }
-  
-  userType = "manager";
-
-  return userType;
 };

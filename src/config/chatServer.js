@@ -1,11 +1,11 @@
 import Koa2 from 'koa';
-const chatApp = new Koa2();
+const smpChatApp = new Koa2();
 import cors from '@koa/cors';
 
-chatApp.use(cors());
+smpChatApp.use(cors());
 
 const port = process.env.CHATSERVERPORT || 7070;
 
-export const httpServer = chatApp.listen(port, () => {
+export const httpServer = smpChatApp.listen(port, () => {
   console.log(`Chat Listening To port ${port}`);
 });

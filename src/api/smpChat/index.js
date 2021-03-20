@@ -2,30 +2,23 @@ import Router from "koa-router";
 import server from "socket.io";
 import { httpServer } from "../../config/chatServer";
 import fs from "fs";
-import path, { resolve } from "path";
+import path from "path";
 import schedule from "node-schedule";
 import {
   verifyClientId,
   verifyManagerInfo,
-  chatSocketIdSetting,
-  registerOption,
-  createRoom,
-  loadRoomName,
-  saveMessage,
-  loadChatContent,
-  loadPreviewContent,
-  reconnectRoom,
-  chatNickNameSetting,
-  leaveRoom,
-  findUserType,
-  loadManagerChatContents,
-  loadClientChatContents,
+  judgeUser,
   registerManager,
+  getServerState,
+  setServerState,
+  createRoom,
+  saveMessage,
 } from "../../services/chat/chat.ctrl";
 
 const io = server(httpServer);
-const chat = new Router();
-chat.get("/image", (ctx) => {
+const smpChat = new Router();
+
+smpChat.get("/image", (ctx) => {
   const name = ctx.query.name;
   const filename = path.join(__dirname, `/../../public/image/${name}`);
   const data = fs.readFileSync(filename);
@@ -33,7 +26,7 @@ chat.get("/image", (ctx) => {
   ctx.body = data;
 });
 // 최초 신청
-chat.get("/chatService.js", async (ctx) => {
+smpChat.get("/chatService.js", async (ctx) => {
   const clientID = ctx.query.CLIENTID;
 
   if (!clientID || clientID === null) {
@@ -41,20 +34,20 @@ chat.get("/chatService.js", async (ctx) => {
     ctx.body = "CLIENTID가 누락되었습니다.";
   }
 
-  const setResult = await verifyClientId(clientID);
+  const verifyResult = await verifyClientId(clientID);
 
-  if (!setResult.result) {
+  if (!verifyResult.result) {
     ctx.status = setResult.code;
     ctx.body = setResult.message;
   }
 
-  const filename = __dirname + "/smpChatServiceCopy.js";
+  const filename = __dirname + "/smpChatService.js";
   const data = fs.readFileSync(filename, "utf8");
 
   ctx.body = data;
 });
 
-chat.get("/chatService.css", (ctx) => {
+smpChat.get("/chatService.css", (ctx) => {
   const cssName = __dirname + "/smpChatService.css";
   const datacss = fs.readFileSync(cssName, "utf8");
 
@@ -63,13 +56,16 @@ chat.get("/chatService.css", (ctx) => {
 });
 
 // 채팅 연결 신청
-chat.get("/", async (ctx) => {
+smpChat.get("/", async (ctx) => {
   const { clientId, userId } = ctx.query;
-  const type = await findUserType(clientId, userId);
+  const type = await judgeUser(clientId, userId);
+  let state = "";
+  if (type === "manager") {
+    await registerManager(clientId, userId);
+    state = await getServerState(userId);
+  }
 
-  if (type === "manager") await registerManager(userId);
-
-  ctx.body = { type };
+  ctx.body = { type, state };
 });
 
 // 네임스페이스를 동적으로 적용
@@ -81,27 +77,29 @@ smpChatIo.use(async (socket, next) => {
   const clientId = socket.handshake.query.clientId;
   const apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
   const verify = await verifyManagerInfo(clientId, apiKey);
-  const ERR = new Error("인증 실패");
 
-  ERR.data = { content: verify.message };
+  if (!verify.result) {
+    const err = { content: verify.message };
+    next(err);
+    return;
+  }
 
-  verify.result ? next() : next(ERR);
+  next();
 });
 
 smpChatIo.on("connection", async (socket) => {
+  const clientId = socket.handshake.query.clientId;
+
   console.log("Connected to socket.io SpaceName");
 
-  socket.on("disconnect", (reason) => {
-    console.log(reason);
+  socket.on("disconnect", (reason) => {});
+
+  socket.on("switch", async (data) => {
+    await setServerState(clientId, data.order);
   });
 
   socket.emit("message", {
     message: "smp 채팅서버에 접속하였습니다.",
-  });
-
-  socket.on("switch", (data) => {
-    console.log(data);
-    console.log(data.connect);
   });
 
   socket.on("message", (data) => {
@@ -121,8 +119,6 @@ smpChatIo.on("connection", async (socket) => {
         // 메세지를 관리자들에게 프리뷰로 띄우고
         // 관리자는 프리뷰 눌러서 조인 하자.
       });
-    }
-    if (userType === "manager") {
     }
   });
 
@@ -312,4 +308,4 @@ smpChatIo.on("connection", async (socket) => {
 //   });
 // });
 
-export default chat;
+export default smpChat;
