@@ -146,8 +146,9 @@ export const changeUTC = (op) => {
   return utcTime;
 };
 
-export const findManagerId = (managerList, userId) => {
+export const checkManagerId = (managerList, userId) => {
   let managerId = "";
+
   for (let i = 0; i < managerList.length; i++) {
     if (managerList[i] === userId) {
       managerId = managerList[i];
@@ -155,5 +156,6 @@ export const findManagerId = (managerList, userId) => {
     }
     managerId = false;
   }
+
   return managerId;
 };

@@ -29,82 +29,63 @@ chat.get("/image", (ctx) => {
   const name = ctx.query.name;
   const filename = path.join(__dirname, `/../../public/image/${name}`);
   const data = fs.readFileSync(filename);
+
   ctx.body = data;
 });
 // 최초 신청
 chat.get("/chatService.js", async (ctx) => {
   const clientID = ctx.query.CLIENTID;
+
   if (!clientID || clientID === null) {
     ctx.status = 401;
     ctx.body = "CLIENTID가 누락되었습니다.";
-    return;
   }
 
   const setResult = await verifyClientId(clientID);
+
   if (!setResult.result) {
     ctx.status = setResult.code;
     ctx.body = setResult.message;
-    return;
   }
 
   const filename = __dirname + "/smpChatServiceCopy.js";
   const data = fs.readFileSync(filename, "utf8");
-  ctx.body = data;
 
+  ctx.body = data;
 });
 
-chat.get("/chatService.css", (ctx)=> {
-  console.log("in?");
+chat.get("/chatService.css", (ctx) => {
   const cssName = __dirname + "/smpChatService.css";
   const datacss = fs.readFileSync(cssName, "utf8");
-  ctx.type= "text/css"
+
+  ctx.type = "text/css";
   ctx.body = datacss;
-})
+});
 
 // 채팅 연결 신청
-// chat.get("/", async (ctx) => {
-//   const clientid = ctx.query.CLIENTID;
-//   const apiKey = ctx.query.APIKEY;
-//   const verifyResult = await verifyIdApiKey(clientid, apiKey);
-//   ctx.body = {
-//     result: verifyResult.result,
-//     state: verifyResult.state,
-//     message: verifyResult.message,
-//   };
-//   return;
-// });
+chat.get("/", async (ctx) => {
+  const { clientId, userId } = ctx.query;
+  const type = await findUserType(clientId, userId);
+
+  if (type === "manager") await registerManager(userId);
+
+  ctx.body = { type };
+});
 
 // 네임스페이스를 동적으로 적용
 const smpChatIo = io.of(async (name, query, next) => {
   next(null, true);
 });
-// // 네임스페이스 미들웨어 적용
+
 smpChatIo.use(async (socket, next) => {
+  const clientId = socket.handshake.query.clientId;
   const apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
-  const clientId = socket.handshake.query.CLIENTID;
   const verify = await verifyManagerInfo(clientId, apiKey);
   const ERR = new Error("인증 실패");
+
   ERR.data = { content: verify.message };
+
   verify.result ? next() : next(ERR);
-
-  // 관리자를 oauth서버에 등록 시켜서 관리자를 구분하자. clear
-  // 1. oauth 서버 관리자 기능 추가  claer
-  // 2. 채팅서버 서버, 클라이언트 html 복구
-  // 3. join leave 기능 처리
-
-  // 관리자의 socket.id를 업데이트
-  // if (!apiKey) {
-  //   const setResult = await chatSocketIdSetting(clientId, apiKey);
-  //   if (!setResult) {
-  //     return console.log("chatSocketIdSetting 에러발생!");
-  //   }
-  // }
-  // if (nickName) {
-  //   const setResult = await chatNickNameSetting(clientId, nickName);
-  //   if (!setResult) {
-  //     return console.log("chatNickNameSetting 에러발생!");
-  //   }
-  // }
 });
 
 smpChatIo.on("connection", async (socket) => {
@@ -114,24 +95,10 @@ smpChatIo.on("connection", async (socket) => {
     message: "smp 채팅서버에 접속하였습니다.",
   });
 
-  const clientId = socket.handshake.query.CLIENTID;
-  const userId = socket.handshake.query.USERID;
-  //const nickName = socket.handshake.query.NICKNAME;
-  const managerId = await findUserType(clientId, userId);
-  await registerManager(managerId);
-  let { chatLog, userType } = "";
-  if (userId === managerId) {
-    userType = "manager";
-    //chatLog = loadManagerChatContents(userId);
-  } else {
-    userType = "client";
-    //chatLog = loadClientChatContents(userId);
-  }
-  socket.emit("initChat", {
-    chatLog,
-    userType,
+  socket.on("switch", (data) => {
+    console.log(data);
+    console.log(data.connect);
   });
-
 
   socket.on("message", (data) => {
     //console.log(userId, nickName, userType);
@@ -152,7 +119,6 @@ smpChatIo.on("connection", async (socket) => {
       });
     }
     if (userType === "manager") {
-
     }
   });
 

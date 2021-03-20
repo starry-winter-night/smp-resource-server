@@ -180,10 +180,12 @@
   width:10px;
   
 }
+
 .smpChat__connect__list::-webkit-scrollbar-thumb {
-  background-color: #0069c0;
+  background-color: #ddd;
   border-radius: 20px;
 } 
+
 .smpChat__connect__list::-webkit-scrollbar-track {
   background-color: #eee;
 }
@@ -217,10 +219,12 @@
   width:10px;
   
 }
+
 .smpChat__dialog__chatView::-webkit-scrollbar-thumb {
-  background-color: #0069c0;
+  background-color: #ddd;
   border-radius: 20px;
 } 
+
 .smpChat__dialog__chatView::-webkit-scrollbar-track {
   background-color: #eee;
 }
@@ -262,6 +266,21 @@
   position: absolute;
   top: 10px;
 }
+
+.smpChat__dialog__msgTextArea::-webkit-scrollbar {
+  width:10px;
+  
+}
+
+.smpChat__dialog__msgTextArea::-webkit-scrollbar-thumb {
+  background-color: #ddd;
+  border-radius: 20px;
+}
+
+.smpChat__dialog__msgTextArea::-webkit-scrollbar-track {
+  background-color: #eee;
+}
+
 .smpChat__dialog__sendImg {
   width: 50px;
   height: 50px;
@@ -272,6 +291,7 @@
   top: 0;
   right: 5px;
 }
+
 .smpChat__dialog__addLabel {
   width: 40px;
   height: 40px;
@@ -282,6 +302,7 @@
   top: 5px;
   margin: 0;
 }
+
 .smpChat__dialog__addInput {
   visibility: hidden;
   width: 0;

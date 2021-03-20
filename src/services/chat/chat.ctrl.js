@@ -5,7 +5,7 @@ import {
   searchPrevClientName,
   loadLatestLog,
   changeUTC,
-  findManagerId,
+  checkManagerId,
 } from "./chat.functions";
 import ManagerChat from "../../models/chatManager";
 import ClientChat from "../../models/chatClient";
@@ -65,7 +65,6 @@ export const registerManager = async (managerId) => {
       managerMember: "",
     });
     await managerChat.save();
-    return;
   }
   return;
 };
@@ -404,8 +403,19 @@ export const leaveRoom = async (user, socketId) => {
 
 export const findUserType = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
+
   if (oauth === null) {
     return false;
   }
-  return findManagerId(oauth.client.chatManagerList, userId);
+
+  const idChecked = checkManagerId(oauth.client.chatManagerList, userId);
+  let userType = "";
+
+  if (!idChecked) {
+    userType = "client";
+  }
+  
+  userType = "manager";
+
+  return userType;
 };
