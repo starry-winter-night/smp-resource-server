@@ -146,16 +146,36 @@ export const changeUTC = (op) => {
   return utcTime;
 };
 
-export const checkManagerId = (managerList, userId) => {
-  let managerId = "";
+export const findSameId = (list, id) => {
+  let data = "";
 
-  for (let i = 0; i < managerList.length; i++) {
-    if (managerList[i] === userId) {
-      managerId = managerList[i];
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === id) {
+      data = list[i];
       break;
     }
-    managerId = false;
+    data = false;
   }
 
-  return managerId;
+  return data;
+};
+
+export const filterManagerData = (smpChatDoc) => {
+  return {
+    id: (userId) => {
+      const managerIdList = smpChatDoc.manager.map((list) => list.managerId);
+      const id = findSameId(managerIdList, userId);
+      return !id ? userId : false;
+    },
+    state: (userId) => {
+      let state = null;
+      for (let i = 0; i < smpChatDoc.manager.length; i++) {
+        if (smpChatDoc.manager[i].managerId === userId) {
+          state = smpChatDoc.manager[i].serverState;
+          break;
+        }
+      }
+      return state;
+    },
+  };
 };

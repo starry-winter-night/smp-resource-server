@@ -62,7 +62,7 @@ smpChat.get("/", async (ctx) => {
   let state = "";
   if (type === "manager") {
     await registerManager(clientId, userId);
-    state = await getServerState(userId);
+    state = await getServerState(clientId, userId);
   }
 
   ctx.body = { type, state };
@@ -89,18 +89,23 @@ smpChatIo.use(async (socket, next) => {
 
 smpChatIo.on("connection", async (socket) => {
   const clientId = socket.handshake.query.clientId;
+  const userId = socket.handshake.query.userId;
 
   console.log("Connected to socket.io SpaceName");
 
-  socket.on("disconnect", (reason) => {});
+  socketReceive(socket).disconnect();
+  socketReceive(socket).switch(clientId, userId);
+  socketReceive(socket).message();
 
-  socket.on("switch", async (data) => {
-    await setServerState(clientId, data.order);
-  });
+  socketSend(socket).message();
 
-  socket.emit("message", {
-    message: "smp 채팅서버에 접속하였습니다.",
-  });
+  // socket.on("disconnect", (reason) => {
+  //   // socket.emit("switch", {
+  //   //   state: await getServerState(userId),
+  //   // });
+  // });
+
+  socket.emit("message", {});
 
   socket.on("message", (data) => {
     //console.log(userId, nickName, userType);
@@ -121,48 +126,37 @@ smpChatIo.on("connection", async (socket) => {
       });
     }
   });
-
-  // loadChatContent();
-  // loadPreviewContent();
-
-  /* 전체 알고리즘 */
-  // 1.chatlog 뿌리기 and 자동 room join
-  // 1-1 관리자는 managerMember의 유저 이름을 통해 chatMember를 검색해 본인과의 채팅 기록을 검색하여 가져온다.
-  // 1-2 managerMember의 유저의 이름+시간이 있으면 join 한다.
-  // 1-3 채팅 기록중 가장 최신 내용 미리보기에 기재 한다.
-  // 1-4 클라이언트는 본인 id를 통해 최근 채팅 데이터를 가져온다.
-  // 1-5 current member에 관리자가 접속 중이라면 join 한다.
-
-  // 2.채팅 내용 send시
-  // 2-1 클라이언트는 본인 아이디+시간 room에 join
-  // 2-2 매니저는 socket.rooms를 이용하여 채팅 요청목록 확인
-  // 2-3 클라이언트의 메시지 내용만 미리보기로 던진다.
-  // 2-4 미리보기 클릭시 해당 채팅룸 join한다.(3-2 참고) currentMember, managerMember, chatMember 갱신
-  // 2-5 미리보기로 들어온 내용의 chatMember에 관리자 아이디 추가
-  // 2-6 채팅 내용 db에 저장
-  // 2-7 매니저도 db에 저장
-
-  // 3.관리자가 나가기 누를시
-  // 3-1 나가기는 관리자만 있으며 채팅룸을 떠난다.
-  // 3-2 managerMember에 아이디가 있는 상태에서 다른 유저(미리보기)를 누르면 채팅룸을 떠난뒤 join 한다.
-  // 관리자 알람(preview)
-
-  // socket.on("chatLog", async () => {
-  //   const preview = await loadPreviewContent();
-  //   const reconnResult = await reconnectRoom(socket.id);
-  //   verifySocket.emit("preview", {
-  //     collection: preview,
-  //     name: reconnResult,
-  //   });
-  // });
-
-  // smpChatIo.on("requestManagerChat",(data)=> {
-  //   socket.join(data.userId);
-  // })
-  // smpChatIo.on("responseClientChat", (data)=> {
-  //   socket.join(data.userId);
-  // })
 });
+
+const socketSend = function sendSocketContact(socket) {
+  return {
+    serverSwitch: async (state) => {
+      socket.emit("switch", state);
+    },
+    message: (msg) => {
+      socket.emit("message", { message: "smp 채팅서버에 접속하였습니다." });
+    },
+  };
+};
+
+const socketReceive = function receiveSocketContact(socket) {
+  return {
+    disconnect: () => {
+      socket.on("disconnect", (reason) => {
+        console.log(reason);
+      });
+    },
+    switch: (clientId, userId) => {
+      socket.on("switch", async (state) => {
+        await setServerState(clientId, userId, state);
+        socketSend(socket).serverSwitch(state);
+      });
+    },
+    message: () => {
+      socket.on("message", (data) => {});
+    },
+  };
+};
 
 //   // 서버가 재연결 되었을 경우 room 처리
 

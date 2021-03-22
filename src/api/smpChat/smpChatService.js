@@ -33,11 +33,13 @@
 
             const socket = await socketURL(this.args);
 
-            switchState(data);
+            switchState(data.state);
 
-            connServer(socket, data);
+            ctrlServerBtn(socket, data.state);
 
-            socketReceive(socket);
+            socketReceive(socket).connect();
+
+            socketReceive(socket).switch();
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -117,17 +119,26 @@
   };
 
   const socketReceive = function receiveSocketContact(socket) {
-    socket.on("connect", () => {
-      console.log("server connect!!");
-    });
+    return {
+      connect: () => {
+        socket.on("connect", () => console.log("server connect!!"));
+      },
+      switch: () => {
+        socket.on("switch", (state) => {
+          if (state === "off") {
+            turnServer(socket).off();
+          }
+          if (state === "on") {
+            turnServer(socket).on();
+          }
 
-    // socket.on("switch", (data) => {
-
-    // });
-
-    socket.on("preview", (previewData) => {
-      console.log(previewData);
-    });
+          switchState(state);
+        });
+      },
+      preview: () => {
+        socket.on("preview", (data) => {});
+      },
+    };
   };
 
   const argCheck = function checkMainArguments({
@@ -163,8 +174,8 @@
     return `http://localhost:5000/smpChat?clientId=${clientId}&userId=${userId}`;
   };
 
-  const socketURL = function connectSocketURL({ clientId, apiKey }) {
-    return io(`ws://localhost:7000/${apiKey}?clientId=${clientId}`, {
+  const socketURL = function connectSocketURL({ clientId, apiKey, userId }) {
+    return io(`ws://localhost:7000/${apiKey}?clientId=${clientId}&userId=${userId}`, {
       autoConnect: false,
     });
   };
@@ -182,9 +193,8 @@
 
   const socketSend = function sendSocketArea(socket) {
     return {
-      serverSwitch: (order) => {
-        console.log(order);
-        socket.emit("switch", { order });
+      serverSwitch: (state) => {
+        socket.emit("switch", state);
       },
       message: (msg) => {
         socket.emit("message", { msg });
@@ -525,23 +535,32 @@
     input.focus();
   };
 
-  const connServer = function ctrlServerConnect(socket, { state }) {
+  const ctrlServerBtn = function ctrlServerConnect(socket, state) {
     const checkbox = document.querySelector(".smpChat__connect__switchInput");
     checkbox.addEventListener("click", async () => {
       if (!checkbox.checked) {
-        socketSend(socket).serverSwitch(false);
-        socket.close();
+        socketSend(socket).serverSwitch("off");
         return;
       }
-      socket.open();
-      socketSend(socket).serverSwitch(true);
+      turnServer(socket).on();
+      socketSend(socket).serverSwitch("on");
     });
+
     if (state === "on") {
-      socket.open();
+      turnServer(socket).on();
+      socketSend(socket).serverSwitch("on");
     }
   };
 
-  const switchState = function changeSwitchState({ state }) {
+  const turnServer = function turnOnOffServer(socket) {
+    return {
+      on: () => socket.open(),
+      off: () => socket.close(),
+    };
+  };
+
+  const switchState = function changeSwitchState(state) {
+    console.log(state);
     const checkbox = document.querySelector(".smpChat__connect__switchInput");
     if (state === "on") {
       checkbox.checked = true;

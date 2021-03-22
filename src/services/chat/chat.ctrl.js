@@ -5,7 +5,8 @@ import {
   searchPrevClientName,
   loadLatestLog,
   changeUTC,
-  checkManagerId,
+  findSameId,
+  filterManagerData,
 } from "./chat.functions";
 import ManagerChat from "../../models/chatManager";
 import ClientChat from "../../models/chatClient";
@@ -84,15 +85,15 @@ export const verifyClientId = async (clientId) => {
 
 export const judgeUser = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
-
+  const managerList = oauth.client.chatManagerList;
   if (oauth === null) {
     return false;
   }
 
-  const idChecked = checkManagerId(oauth.client.chatManagerList, userId);
+  const id = findSameId(managerList, userId);
   let userType = "";
 
-  if (!idChecked) {
+  if (!id) {
     userType = "client";
   }
 
@@ -101,43 +102,44 @@ export const judgeUser = async (clientId, userId) => {
   return userType;
 };
 
-export const registerManager = async (clientId, managerId) => {
-  const info = await SmpChat.findByUsername(managerId);
+export const registerManager = async (clientId, userId) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
 
-  if (info === null && typeof managerId === "string") {
-    const smpChat = await SmpChat.findByClientId(clientId);
-
-    await smpChat.updateByServerState("off");
-    await smpChat.updateByManagerIds(managerId);
+  if (smpChat.manager.length === 0) {
+    await smpChat.updateByIdAndState(userId, "off");
+    return;
   }
+
+  const managerId = filterManagerData(smpChat).id(userId);
+
+  if (!managerId) return;
+
+  await smpChat.updateByIdAndState(managerId, "off");
   return;
 };
 
 export const verifyManagerInfo = async (clientId, apiKey) => {
-  const info = await SmpChat.findByChatApiKey(apiKey);
+  const smpChat = await SmpChat.findByChatApiKey(apiKey);
 
-  if (info === null) {
+  if (smpChat === null) {
     return { message: "apiKey가 일치하지 않습니다.", result: false };
   }
 
-  if (info.clientId !== clientId) {
+  if (smpChat.clientId !== clientId) {
     return { message: "clientId가 일치하지 않습니다.", result: false };
   }
 
   return { result: true };
 };
 
-export const getServerState = async (managerId) => {
-  const info = await SmpChat.findByUsername(managerId);
-  return info.serverState;
+export const getServerState = async (clientId, userId) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+  return filterManagerData(smpChat).state(userId);
 };
 
-export const setServerState = async (clientId, order) => {
-  const info = await SmpChat.findByClientId(clientId);
-  const state = order ? "on" : "off";
-
-  await info.updateByServerState(state);
-
+export const setServerState = async (clientId, userId, state) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+  await SmpChat.updateByServerState(smpChat._id, userId, state);
   return;
 };
 
