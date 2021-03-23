@@ -35,7 +35,7 @@
 
             switchState(data.state);
 
-            ctrlServerBtn(socket, data.type, data.state);
+            serverBtn(socket, data.type, data.state);
 
             socketReceive(socket).connect();
           } catch (e) {
@@ -182,6 +182,7 @@
 
   const clientArea = function ctrlClientChat({ domId }) {
     clientHTML(domId);
+    noticeHTML();
     chatIcon();
     dialogHeight();
     textLine();
@@ -466,7 +467,7 @@
     const logoText = document.createTextNode("smpchat");
 
     /* dialog */
-    const infoText = document.createTextNode("Web Developer smpark 채팅하기");
+    const infoText = document.createTextNode("Web Developer smPark 채팅하기");
     const connSwitchOff = document.createTextNode("OFF");
     const connSwitchOn = document.createTextNode("ON");
 
@@ -594,17 +595,75 @@
     dialogChatAddInput.name = "smp_chat_addImg";
   };
 
+  const noticeHTML = function drawNoticeHTML() {
+    /*****************************  layout *****************************/
+    /*  dialog  */
+    const dialog = document.querySelector(".smpChat__dialog__chatView");
+    const noticeContainer = document.createElement("div");
+    const noticeProfileImage = document.createElement("img");
+    const noticeId = document.createElement("p");
+    const noticeSpan = document.createElement("span");
+    const noticeTime = document.createElement("time");
+    const noticeContents = document.createElement("p");
+
+    /*****************************  node  *****************************/
+    /* dialog */
+    const noticeIdText = document.createTextNode("smpchat");
+    const noticeIdSpan = document.createTextNode("[공지사항]");
+    const noticeContentText = `안녕하세요! 
+    </br></br> Third_party API SMPCHAT입니다. 
+    </br></br> 우측상단의 버튼을 클릭하시면 채팅서버와 연결됩니다. 
+    </br></br> 하단에서 메세지를 입력 후 엔터 혹은 우측 아이콘을 클릭하시면 관리자와 연결됩니다. 
+    </br></br> 좌측 플러스 버튼으로 이미지를 보내실 수 있습니다.(1MB 이하) 
+    </br></br> 메세지 입력시 ctrl + enter키를 통해 줄바꿈 하실 수 있습니다. 
+    </br></br> "깃허브" 또는 "이메일"을 입력하시면 해당 링크를 얻으실 수 있습니다.
+    </br></br> <b>[채팅운영시간]</b> 
+    </br>평일 10:00 ~ 18:00 
+    </br></br> 감사합니다 :D`;
+
+    /*****************************  appned  *****************************/
+    /* dialog */
+    noticeContents.innerHTML = noticeContentText;
+    noticeId.appendChild(noticeIdText);
+    noticeSpan.appendChild(noticeIdSpan);
+    noticeContainer.appendChild(noticeProfileImage);
+    noticeContainer.appendChild(noticeId);
+    noticeContainer.appendChild(noticeSpan);
+    noticeContainer.appendChild(noticeTime);
+    noticeContainer.appendChild(noticeContents);
+    dialog.appendChild(noticeContainer);
+
+    /*****************************  className & id  *****************************/
+    /* dialog */
+    noticeContainer.className = "smpChat__dialog__noticeContainer";
+    noticeProfileImage.className = "smpChat__dialog__noticeProfileImage";
+    noticeId.className = "smpChat__dialog__noticeId";
+    noticeSpan.className = "smpChat__dialog__noticeSpan";
+    noticeTime.className = "smpChat__dialog__noticeTime";
+    noticeContents.className = "smpChat__dialog__noticeContents";
+
+    /***************************** set *****************************/
+    noticeProfileImage.setAttribute(
+      "src",
+      "http://localhost:5000/smpChat/image?name=smpark.jpg"
+    );
+  };
+
   const chatIcon = function toggleChatView() {
     const icon = document.querySelector(".smpChatIcon");
     const section = document.querySelector(".smpChat__section");
     const close = document.querySelector(".smpChat__section__close");
+    const notice = document.querySelector(".smpChat__dialog__noticeContainer");
+
     icon.addEventListener("click", () => {
       icon.classList.toggle("smp_active");
       section.classList.toggle("smp_active");
+      notice.classList.toggle("smp_active");
     });
     close.addEventListener("click", () => {
       icon.classList.toggle("smp_active");
       section.classList.toggle("smp_active");
+      notice.classList.toggle("smp_active");
     });
   };
 
@@ -612,10 +671,8 @@
     const msgInput = document.querySelector(".smpChat__dialog__msgTextArea");
     const footer = document.querySelector(".smpChat__dialog__footer");
     const chatView = document.querySelector(".smpChat__dialog__chatView");
-
-    msgInput.addEventListener("input", applyDialogHeight, false);
-
-    function applyDialogHeight(e) {
+    
+    const applyDialogHeight = (e) => {
       //const currentHeight = msgInput.scrollHeight;
       const inputHeight = msgInput.offsetHeight;
       const footerHeight = footer.offsetHeight;
@@ -624,20 +681,21 @@
       // textarea의 높이 값을 부여하여 자동으로 높이값을 조절하게 한다.
       msgInput.style.height = "0px";
       msgInput.style.height = `${msgInput.scrollHeight}px`;
+      // 핵심은 줄바꿈마다 inputBox의 초기높이 만큼 더하거나 빼준다.
       if (msgInput.scrollHeight > inputHeight) {
         chatView.style.height = `${
-          chatViewHeight - (msgInput.scrollHeight - inputHeight)
+          chatViewHeight - (e.target.offsetHeight - inputHeight)
         }px`;
         footer.style.height = `${
-          footerHeight + (msgInput.scrollHeight - inputHeight)
+          footerHeight + (e.target.offsetHeight - inputHeight)
         }px`;
       }
       if (msgInput.scrollHeight < inputHeight) {
         chatView.style.height = `${
-          chatViewHeight + (inputHeight - msgInput.scrollHeight)
+          chatViewHeight + (inputHeight - e.target.offsetHeight)
         }px`;
         footer.style.height = `${
-          footerHeight - (inputHeight - msgInput.scrollHeight)
+          footerHeight - (inputHeight - e.target.offsetHeight)
         }px`;
       }
 
@@ -655,42 +713,62 @@
       /*     한번 더 put이 되어야 바뀐다.                              */
       /*                                                               */
       /*****************************************************************/
-      // console.log("currentHeight:", currentHeight);
+      //console.log("currentHeight:", currentHeight);
+      // console.log("chatViewHeight", chatViewHeight);
       // console.log("inputHeight:", inputHeight);
       // console.log("e.target.offsetHeigh:", e.target.offsetHeight);
-      // console.log("msgInput.scrollHeight:",  msgInput.scrollHeight);
+      // console.log("msgInput.scrollHeight:", msgInput.scrollHeight);
       textHeight(msgInput);
-    }
+    };
+
+    msgInput.addEventListener("input", applyDialogHeight, false);
   };
 
   const textLine = function lineBreakTextArea() {
     const msgInput = document.querySelector(".smpChat__dialog__msgTextArea");
-    msgInput.addEventListener("keydown", applyLineBreakHeight, false);
-    function applyLineBreakHeight(e) {
+    const inputLineHeight = styleValue(msgInput, "line-height");
+
+    const applyLineBreakHeight = (e) => {
       if (e.ctrlKey && e.key === "Enter") {
         const footer = document.querySelector(".smpChat__dialog__footer");
         const chatView = document.querySelector(".smpChat__dialog__chatView");
-
+        const lineHeight = removeStringWord(inputLineHeight);
         const msgInputHeight = e.target.offsetHeight;
         const footerHeight = footer.offsetHeight;
         const chatViewHeight = chatView.offsetHeight;
+        const cursorPosition = e.target.selectionStart;
+        const textLineBreak = `${e.target.value}\r\n`;
 
-        msgInput.style.height = `${msgInputHeight + 30}px`;
-        footer.style.height = `${footerHeight + 30}px`;
-        chatView.style.height = `${chatViewHeight - 30}px`;
+        e.target.value = textLineBreak;
 
-        e.target.value = `${e.target.value}\r\n`;
+        if (cursorPosition > 0) {
+          msgInput.style.height = `${msgInputHeight + lineHeight}px`;
+          footer.style.height = `${footerHeight + lineHeight}px`;
+          chatView.style.height = `${chatViewHeight - lineHeight}px`;
+        }
+
         textHeight(msgInput);
         textFocus(msgInput);
       }
-    }
+    };
+    msgInput.addEventListener("keydown", applyLineBreakHeight, false);
   };
 
-  const textHeight = function limitTextAreaHeight(input) {
-    if (input.offsetHeight >= 180) {
-      input.style.overflowY = "scroll";
+  const styleValue = function getStyleValue(dom, propName) {
+    const style = window.getComputedStyle(dom);
+    return style.getPropertyValue(propName);
+  };
+
+  const removeStringWord = (str) => {
+    return Number(str.replace(/[^0-9]/g, ""));
+  };
+
+  const textHeight = function limitTextAreaHeight(dom) {
+    const maxHeight = removeStringWord(styleValue(dom, "max-height"));
+    if (dom.offsetHeight >= maxHeight) {
+      dom.style.overflowY = "scroll";
     } else {
-      input.style.overflowY = "hidden";
+      dom.style.overflowY = "hidden";
     }
   };
 
@@ -699,7 +777,7 @@
     input.focus();
   };
 
-  const ctrlServerBtn = function ctrlServerConnect(socket, type, state) {
+  const serverBtn = function ctrlServerConnect(socket, type, state) {
     const name = type === "manager" ? "connect" : "dialog";
     const checkbox = document.querySelector(`.smpChat__${name}__switchInput`);
     if (!checkbox) return;
@@ -707,21 +785,21 @@
     checkbox.addEventListener("click", async () => {
       if (!checkbox.checked) {
         socketSend(socket).serverSwitch("off");
-        turnServer(socket).off();
+        ctrlServer(socket).off();
         return;
       }
 
-      turnServer(socket).on();
+      ctrlServer(socket).on();
       socketSend(socket).serverSwitch("on");
     });
 
     if (state === "on") {
-      turnServer(socket).on();
+      ctrlServer(socket).on();
       socketSend(socket).serverSwitch("on");
     }
   };
 
-  const turnServer = function turnOnOffServer(socket) {
+  const ctrlServer = function turnOnOffServer(socket) {
     return {
       on: () => socket.open(),
       off: () => socket.close(),
