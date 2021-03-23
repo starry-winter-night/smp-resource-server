@@ -95,10 +95,10 @@ export const judgeUser = async (clientId, userId) => {
 
   if (!id) {
     userType = "client";
+    return userType;
   }
 
   userType = "manager";
-
   return userType;
 };
 
@@ -112,7 +112,7 @@ export const registerManager = async (clientId, userId) => {
 
   const managerId = filterManagerData(smpChat).id(userId);
 
-  if (!managerId) return;
+  if (managerId) return;
 
   await smpChat.updateByIdAndState(managerId, "off");
   return;
@@ -139,6 +139,8 @@ export const getServerState = async (clientId, userId) => {
 
 export const setServerState = async (clientId, userId, state) => {
   const smpChat = await SmpChat.findByClientId(clientId);
+  const id = filterManagerData(smpChat).id(userId);
+  if (!id) return;
   await SmpChat.updateByServerState(smpChat._id, userId, state);
   return;
 };

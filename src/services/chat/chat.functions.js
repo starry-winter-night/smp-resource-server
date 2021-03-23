@@ -165,7 +165,7 @@ export const filterManagerData = (smpChatDoc) => {
     id: (userId) => {
       const managerIdList = smpChatDoc.manager.map((list) => list.managerId);
       const id = findSameId(managerIdList, userId);
-      return !id ? userId : false;
+      return id ? userId : false;
     },
     state: (userId) => {
       let state = null;

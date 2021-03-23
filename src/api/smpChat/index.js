@@ -130,9 +130,6 @@ smpChatIo.on("connection", async (socket) => {
 
 const socketSend = function sendSocketContact(socket) {
   return {
-    serverSwitch: async (state) => {
-      socket.emit("switch", state);
-    },
     message: (msg) => {
       socket.emit("message", { message: "smp 채팅서버에 접속하였습니다." });
     },
@@ -149,7 +146,6 @@ const socketReceive = function receiveSocketContact(socket) {
     switch: (clientId, userId) => {
       socket.on("switch", async (state) => {
         await setServerState(clientId, userId, state);
-        socketSend(socket).serverSwitch(state);
       });
     },
     message: () => {
