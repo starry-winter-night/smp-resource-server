@@ -362,9 +362,9 @@
 }
 
 .smpChat__dialog__span {
-  font-family: "Inconsolata", monospace;
-  font-weight: 700;
+  font-family: "Nanum Gothic Coding", monospace;
   cursor: default;
+  font-size: 13px;
 }
 
 .smpChat__dialog__time {

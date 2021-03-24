@@ -37,7 +37,7 @@
 
             serverBtn(socket, data.type, data.state);
 
-            msgSend();
+            msgSend(socket);
 
             socketReceive(socket).connect();
           } catch (e) {
@@ -175,7 +175,6 @@
     managerHTML(domId);
     chatIcon();
     dialogHeight();
-    textLine();
   };
 
   const clientArea = function ctrlClientChat({ domId }) {
@@ -183,7 +182,6 @@
     messageHTML().notice();
     chatIcon();
     dialogHeight();
-    textLine();
   };
 
   const socketSend = function sendSocketArea(socket) {
@@ -192,12 +190,12 @@
         socket.emit("switch", state);
       },
       message: (msg) => {
-        socket.emit("message", { msg });
+        socket.emit("message", msg);
       },
     };
   };
 
-  const msgSend = function sendMessage() {
+  const msgSend = function sendMessage(socket) {
     const message = document.querySelector(".smpChat__dialog__msgTextArea");
     const sendButton = document.querySelector(".smpChat__dialog__sendImg");
     const chatView = document.querySelector(".smpChat__dialog__chatView");
@@ -210,22 +208,25 @@
           e.preventDefault();
           return;
         }
-
         linkInfo(msg);
+        socketSend(socket).message(msg);
         scrollBottom(chatView);
+
         message.value = "";
+
         e.preventDefault();
       }
     };
 
     const sendMsgButtonClick = (e) => {
       const msg = message.value;
+
       if (!emptyCheck(msg)) {
         e.preventDefault();
         return;
       }
-
       linkInfo(msg);
+      socketSend(socket).message(msg);
       scrollBottom(chatView);
       message.value = "";
       e.preventDefault();
@@ -259,33 +260,6 @@
       messageHTML().link(linkAddr, gitAddr);
     }
   };
-
-  function processMessageSend(socket) {
-    const sendButton = document.getElementById("smp_messageButton");
-    const message = document.getElementById("smp_messageInput");
-
-    if (sendButton && message) {
-      message.addEventListener("keydown", (evt) => {
-        evt.key === "Enter" && !evt.ctrlKey
-          ? checkEmptyString(message.value)
-            ? (sendMessageSocket(socket, message.value),
-              (message.value = ""),
-              evt.preventDefault())
-            : (message.value = "")
-          : false;
-      });
-      sendButton.addEventListener("click", (evt) => {
-        evt.preventDefault();
-        checkEmptyString(message.value)
-          ? (sendMessageSocket(socket, message.value),
-            (message.value = ""),
-            message.focus())
-          : (message.value = "");
-      });
-    } else {
-      alert("새로고침이 필요합니다.");
-    }
-  }
 
   const emptyCheck = function checkEmptyString(data) {
     return typeof data.trim() === "string" && data.trim() !== "" ? true : false;
@@ -697,9 +671,8 @@
 
     return {
       notice: () => {
-
         /*  node  */
-        const noticeIdSpan = document.createTextNode("[Notice]");
+        const noticeIdSpan = document.createTextNode("[공지사항]");
         const noticeContentText = `안녕하세요! 
         </br></br> Third_party API SMPCHAT입니다. 
         </br></br> 우측상단의 버튼을 클릭하시면 채팅서버와 연결됩니다. 
@@ -723,17 +696,17 @@
         container.className = "smpChat__dialog__noticeContainer";
       },
       link: (linkAddr, word) => {
-        
         /*  layout  */
         const link = document.createElement("a");
 
         /*  node  */
         const linkWord = document.createTextNode(word);
-        const linkSpan = document.createTextNode("[Info]");
+        const linkSpan = document.createTextNode("[정보]");
 
         /*  appned  */
         link.appendChild(linkWord);
-        profile.appendChild(linkSpan);
+        span.appendChild(linkSpan);
+        profile.appendChild(span);
         contentsContainer.appendChild(link);
         container.appendChild(contentsContainer);
         dialog.appendChild(container);
@@ -754,12 +727,15 @@
     const section = document.querySelector(".smpChat__section");
     const close = document.querySelector(".smpChat__section__close");
     const notice = document.querySelector(".smpChat__dialog__noticeContainer");
+    const chatView = document.querySelector(".smpChat__dialog__chatView");
 
     icon.addEventListener("click", () => {
       icon.classList.toggle("smp_active");
       section.classList.toggle("smp_active");
       notice.classList.toggle("smp_active");
+      scrollBottom(chatView);
     });
+
     close.addEventListener("click", () => {
       icon.classList.toggle("smp_active");
       section.classList.toggle("smp_active");
@@ -772,7 +748,7 @@
     const footer = document.querySelector(".smpChat__dialog__footer");
     const chatView = document.querySelector(".smpChat__dialog__chatView");
 
-    const applyDialogHeight = (e) => {
+    const changeDialogHeight = (e) => {
       //const currentHeight = msgInput.scrollHeight;
       const inputHeight = msgInput.offsetHeight;
       const footerHeight = footer.offsetHeight;
@@ -799,59 +775,36 @@
         }px`;
       }
 
-      /******** 중요한 부분이라 크게 남긴다. 미래의 나 보아라. ********/
-      /*                                                               */
-      /*     text가 늘어나서 줄바꿈이 되면                             */
-      /*     currentHeight 와 msgInput.scrollHeight은                  */
-      /*     동시에 값이 바뀌지만 inputHeight는 줄이 바뀌고            */
-      /*     한번 더 put이 되어야 바뀐다.                              */
-      /*                                                               */
-      /*                                                               */
-      /*     text가 줄어들어서 줄바꿈이 되면                           */
-      /*     msgInput.scrollHeight 값이 먼저 바뀌고                    */
-      /*     currentHeight와 inputHeight는 줄이 바뀌고                 */
-      /*     한번 더 put이 되어야 바뀐다.                              */
-      /*                                                               */
-      /*****************************************************************/
-      //console.log("currentHeight:", currentHeight);
-      // console.log("chatViewHeight", chatViewHeight);
-      // console.log("inputHeight:", inputHeight);
-      // console.log("e.target.offsetHeigh:", e.target.offsetHeight);
-      // console.log("msgInput.scrollHeight:", msgInput.scrollHeight);
-      textHeight(msgInput);
+      changeScroll(msgInput);
     };
 
-    msgInput.addEventListener("input", applyDialogHeight, false);
-  };
-
-  const textLine = function lineBreakTextArea() {
-    const msgInput = document.querySelector(".smpChat__dialog__msgTextArea");
-    const inputLineHeight = styleValue(msgInput, "line-height");
-
-    const applyLineBreakHeight = (e) => {
+    msgInput.addEventListener("input", changeDialogHeight, false);
+    msgInput.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.key === "Enter") {
-        const footer = document.querySelector(".smpChat__dialog__footer");
-        const chatView = document.querySelector(".smpChat__dialog__chatView");
-        const lineHeight = removeStr(inputLineHeight);
-        const msgInputHeight = e.target.offsetHeight;
-        const footerHeight = footer.offsetHeight;
-        const chatViewHeight = chatView.offsetHeight;
-        const cursorPosition = e.target.selectionStart;
-        const textLineBreak = `${e.target.value}\r\n`;
-
-        e.target.value = textLineBreak;
-
-        if (cursorPosition > 0) {
-          msgInput.style.height = `${msgInputHeight + lineHeight}px`;
-          footer.style.height = `${footerHeight + lineHeight}px`;
-          chatView.style.height = `${chatViewHeight - lineHeight}px`;
-        }
-        scrollBottom(chatView);
-        textHeight(msgInput);
+        cursorPosition(e);
+        changeDialogHeight(e);
         textFocus(msgInput);
       }
-    };
-    msgInput.addEventListener("keydown", applyLineBreakHeight, false);
+    });
+  };
+
+  const cursorPosition = function ctrlCursorPosition(e) {
+    const cursorPosition = e.target.selectionEnd;
+    const cursorNextText = e.target.value.substring(cursorPosition);
+    const cursorPrevText = e.target.value.substring(0, cursorPosition);
+    const lineBreak = "\r\n";
+
+    // 이전 text + 줄 바꿈만 적용 (줄 바꿈 직후의 커서 위치를 얻기 위해)
+    e.target.value = cursorPrevText + lineBreak;
+
+    // 줄 바꿈한 상태의 커서 위치를 저장
+    const lineBreakCursorPosition = e.target.selectionEnd;
+
+    // 전체 텍스트를 적용
+    e.target.value = cursorPrevText + lineBreak + cursorNextText;
+
+    // 커서를 줄 바꿈한 직후 상태의 포지션에 적용
+    e.target.selectionEnd = lineBreakCursorPosition;
   };
 
   const styleValue = function getStyleValue(dom, propName) {
@@ -863,7 +816,7 @@
     return Number(str.replace(/[^0-9]/g, ""));
   };
 
-  const textHeight = function limitTextAreaHeight(dom) {
+  const changeScroll = function changeScrollMaxHeight(dom) {
     const maxHeight = removeStr(styleValue(dom, "max-height"));
     if (dom.offsetHeight >= maxHeight) {
       dom.style.overflowY = "scroll";
