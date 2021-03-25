@@ -60,10 +60,10 @@ smpChat.get("/", async (ctx) => {
   const { clientId, userId } = ctx.query;
   const type = await judgeUser(clientId, userId);
   let state = "";
-  if (type === "manager") {
-    await registerManager(clientId, userId);
-    state = await getServerState(clientId, userId);
-  }
+
+  await registerManager(clientId, userId, type);
+
+  state = await getServerState(clientId, userId, type);
 
   ctx.body = { type, state };
 });
@@ -105,27 +105,25 @@ smpChatIo.on("connection", async (socket) => {
   //   // });
   // });
 
-  socket.emit("message", {});
-
-  socket.on("message", (data) => {
-    //console.log(userId, nickName, userType);
-    if (userType === "client") {
-      socket.join(userId, async () => {
-        await createRoom(userId, nickName);
-        const msgTime = await saveMessage(userId, data.message);
-        console.log(msgTime);
-        socket.emit("preview", {
-          message: data.message,
-          username: userId,
-          nickName,
-          msgTime,
-        });
-        // 메세지를 저장하고
-        // 메세지를 관리자들에게 프리뷰로 띄우고
-        // 관리자는 프리뷰 눌러서 조인 하자.
-      });
-    }
-  });
+  // socket.on("message", (data) => {
+  //   //console.log(userId, nickName, userType);
+  //   if (userType === "client") {
+  //     socket.join(userId, async () => {
+  //       await createRoom(userId, nickName);
+  //       const msgTime = await saveMessage(userId, data.message);
+  //       console.log(msgTime);
+  //       socket.emit("preview", {
+  //         message: data.message,
+  //         username: userId,
+  //         nickName,
+  //         msgTime,
+  //       });
+  //       // 메세지를 저장하고
+  //       // 메세지를 관리자들에게 프리뷰로 띄우고
+  //       // 관리자는 프리뷰 눌러서 조인 하자.
+  //     });
+  //   }
+  // });
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -145,11 +143,16 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     switch: (clientId, userId) => {
       socket.on("switch", async (state) => {
-        await setServerState(clientId, userId, state);
+        const type = await judgeUser(clientId, userId);
+        const setState = await setServerState(clientId, userId, state, type);
+        
+        if (!setState.result) console.log("err");
       });
     },
     message: () => {
-      socket.on("message", (data) => {});
+      socket.on("message", (data) => {
+        console.log(data);
+      });
     },
   };
 };

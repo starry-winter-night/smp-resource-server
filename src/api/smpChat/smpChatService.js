@@ -35,9 +35,9 @@
 
             switchState(data.state);
 
-            serverBtn(socket, data.type, data.state);
+            serverCtrl(socket, data.type, data.state);
 
-            msgSend(socket);
+            msgSend(socket, data.state);
 
             socketReceive(socket).connect();
           } catch (e) {
@@ -173,13 +173,14 @@
 
   const managerArea = function ctrlManagerChat({ domId }) {
     managerHTML(domId);
+    messageHTML().noticeManager();
     chatIcon();
     dialogHeight();
   };
 
   const clientArea = function ctrlClientChat({ domId }) {
     clientHTML(domId);
-    messageHTML().notice();
+    messageHTML().noticeClient();
     chatIcon();
     dialogHeight();
   };
@@ -195,11 +196,13 @@
     };
   };
 
-  const msgSend = function sendMessage(socket) {
+  const offlineMessage = function drawOfflineMessage() {};
+
+  const msgSend = function sendMessage(socket, state) {
     const message = document.querySelector(".smpChat__dialog__msgTextArea");
     const sendButton = document.querySelector(".smpChat__dialog__sendImg");
     const chatView = document.querySelector(".smpChat__dialog__chatView");
-
+    console.log(state);
     const sendMsgEnterKey = (e) => {
       if (e.key === "Enter" && !e.ctrlKey) {
         const msg = e.target.value;
@@ -208,6 +211,7 @@
           e.preventDefault();
           return;
         }
+
         linkInfo(msg);
         socketSend(socket).message(msg);
         scrollBottom(chatView);
@@ -225,6 +229,7 @@
         e.preventDefault();
         return;
       }
+
       linkInfo(msg);
       socketSend(socket).message(msg);
       scrollBottom(chatView);
@@ -670,7 +675,32 @@
     );
 
     return {
-      notice: () => {
+      noticeClient: () => {
+        /*  node  */
+        const noticeIdSpan = document.createTextNode("[공지사항]");
+        const noticeContentText = `안녕하세요! 
+        </br></br> Third_party API SMPCHAT입니다. 
+        </br></br> 우측상단의 버튼을 클릭하시면 채팅서버와 연결됩니다. 
+        </br></br> 하단에서 메세지를 입력 후 엔터 혹은 우측 아이콘을 클릭하시면 관리자와 연결됩니다. 
+        </br></br> 좌측 플러스 버튼으로 이미지를 보내실 수 있습니다.(1MB 이하) 
+        </br></br> 메세지 입력시 컨트롤 + 엔터키를 통해 줄바꿈 하실 수 있습니다. 
+        </br></br> "깃허브" 또는 "이메일"을 입력하시면 해당 링크를 얻으실 수 있습니다.
+        </br></br> <b>[채팅운영시간]</b> 
+        </br>평일 10:00 ~ 18:00 
+        </br></br> 감사합니다 :D`;
+
+        /*  appned  */
+        content.innerHTML = noticeContentText;
+        span.appendChild(noticeIdSpan);
+        profile.appendChild(span);
+        contentsContainer.appendChild(content);
+        container.appendChild(contentsContainer);
+        dialog.appendChild(container);
+
+        /*  className & id   */
+        container.className = "smpChat__dialog__noticeContainer";
+      },
+      noticeManager: () => {
         /*  node  */
         const noticeIdSpan = document.createTextNode("[공지사항]");
         const noticeContentText = `안녕하세요! 
@@ -834,7 +864,7 @@
     dom.scrollTop = dom.scrollHeight;
   };
 
-  const serverBtn = function ctrlServerConnect(socket, type, state) {
+  const serverCtrl = function ctrlServerConnect(socket, type, state) {
     const name = type === "manager" ? "connect" : "dialog";
     const checkbox = document.querySelector(`.smpChat__${name}__switchInput`);
     if (!checkbox) return;
@@ -864,7 +894,9 @@
   };
 
   const switchState = function changeSwitchState(state) {
-    const checkbox = document.querySelector(".smpChat__connect__switchInput");
+    const checkbox =
+      document.querySelector(".smpChat__connect__switchInput") ||
+      document.querySelector(".smpChat__dialog__switchInput");
     if (state === "on") {
       checkbox.checked = true;
     }

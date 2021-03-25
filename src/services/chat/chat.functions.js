@@ -160,21 +160,42 @@ export const findSameId = (list, id) => {
   return data;
 };
 
-export const filterManagerData = (smpChatDoc) => {
+export const filterSmpChatData = (smpChatDoc) => {
   return {
-    id: (userId) => {
-      const managerIdList = smpChatDoc.manager.map((list) => list.managerId);
-      const id = findSameId(managerIdList, userId);
-      return id ? userId : false;
+    id: (userId, type) => {
+      let idList = null;
+
+      if (type === "manager") {
+        idList = smpChatDoc.manager.map((list) => list.managerId);
+      } else {
+        idList = smpChatDoc.client.map((list) => list.userId);
+      }
+
+      if (idList.length === 0) return "nonExist";
+
+      const id = findSameId(idList, userId);
+
+      return id ? "exist" : "nonExist";
     },
-    state: (userId) => {
+    state: (userId, type) => {
       let state = null;
-      for (let i = 0; i < smpChatDoc.manager.length; i++) {
-        if (smpChatDoc.manager[i].managerId === userId) {
-          state = smpChatDoc.manager[i].serverState;
-          break;
+
+      if (type === "manager") {
+        for (let i = 0; i < smpChatDoc.manager.length; i++) {
+          if (smpChatDoc.manager[i].managerId === userId) {
+            state = smpChatDoc.manager[i].serverState;
+            break;
+          }
+        }
+      } else {
+        for (let i = 0; i < smpChatDoc.client.length; i++) {
+          if (smpChatDoc.client[i].userId === userId) {
+            state = smpChatDoc.client[i].serverState;
+            break;
+          }
         }
       }
+
       return state;
     },
   };

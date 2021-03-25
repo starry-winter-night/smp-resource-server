@@ -20,6 +20,7 @@ const smpChatSchema = new Schema({
   ],
   client: [
     {
+      serverState: String,
       userId: String,
       currentMember: [],
       chatLog: [
@@ -52,20 +53,38 @@ smpChatSchema.statics.findByChatApiKey = function (chatApiKey) {
    즉, 업데이트에 사용할 조건이 최상위어야 한다.   
 */
 smpChatSchema.statics.updateByServerState = function (
-  id,
-  managerId,
-  serverState
+  _id,
+  userId,
+  serverState,
+  userType
 ) {
+  if (userType === "manager") {
+    return this.updateOne(
+      { _id, "manager.managerId": userId },
+      { $set: { "manager.$.serverState": serverState } }
+    );
+  }
   return this.updateOne(
-    { _id: id, "manager.managerId": managerId },
-    { $set: { "manager.$.serverState": serverState } }
+    { _id, "client.userId": userId },
+    { $set: { "client.$.serverState": serverState } }
   );
 };
 
-smpChatSchema.methods.updateByIdAndState = function (managerId, serverState) {
+smpChatSchema.methods.updateByIdAndState = function (
+  userId,
+  serverState,
+  userType
+) {
+  if (userType === "manager") {
+    return this.updateOne({
+      $addToSet: {
+        manager: { managerId: userId, serverState },
+      },
+    });
+  }
   return this.updateOne({
     $addToSet: {
-      manager: { managerId, serverState },
+      client: { userId, serverState },
     },
   });
 };

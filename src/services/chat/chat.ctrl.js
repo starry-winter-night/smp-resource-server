@@ -6,7 +6,7 @@ import {
   loadLatestLog,
   changeUTC,
   findSameId,
-  filterManagerData,
+  filterSmpChatData,
 } from "./chat.functions";
 import ManagerChat from "../../models/chatManager";
 import ClientChat from "../../models/chatClient";
@@ -71,6 +71,7 @@ export const verifyClientId = async (clientId) => {
 
   // 최초등록
   const info = await SmpChat.findByClientId(clientId);
+  
   if (info === null) {
     const smpChat = new SmpChat({
       clientId,
@@ -86,6 +87,7 @@ export const verifyClientId = async (clientId) => {
 export const judgeUser = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
   const managerList = oauth.client.chatManagerList;
+
   if (oauth === null) {
     return false;
   }
@@ -95,26 +97,24 @@ export const judgeUser = async (clientId, userId) => {
 
   if (!id) {
     userType = "client";
+
     return userType;
   }
 
   userType = "manager";
+
   return userType;
 };
 
-export const registerManager = async (clientId, userId) => {
+export const registerManager = async (clientId, userId, userType) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
-  if (smpChat.manager.length === 0) {
-    await smpChat.updateByIdAndState(userId, "off");
-    return;
-  }
+  const result = filterSmpChatData(smpChat).id(userId, userType);
 
-  const managerId = filterManagerData(smpChat).id(userId);
+  if (result === "exist") return;
 
-  if (managerId) return;
+  await smpChat.updateByIdAndState(userId, "off", userType);
 
-  await smpChat.updateByIdAndState(managerId, "off");
   return;
 };
 
@@ -132,17 +132,20 @@ export const verifyManagerInfo = async (clientId, apiKey) => {
   return { result: true };
 };
 
-export const getServerState = async (clientId, userId) => {
+export const getServerState = async (clientId, userId, userType) => {
   const smpChat = await SmpChat.findByClientId(clientId);
-  return filterManagerData(smpChat).state(userId);
+
+  return filterSmpChatData(smpChat).state(userId, userType);
 };
 
-export const setServerState = async (clientId, userId, state) => {
+export const setServerState = async (clientId, userId, state, userType) => {
   const smpChat = await SmpChat.findByClientId(clientId);
-  const id = filterManagerData(smpChat).id(userId);
-  if (!id) return;
-  await SmpChat.updateByServerState(smpChat._id, userId, state);
-  return;
+
+  if (!smpChat) return { result: false };
+
+  await SmpChat.updateByServerState(smpChat._id, userId, state, userType);
+
+  return { result: true };
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {
