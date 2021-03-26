@@ -1,3 +1,4 @@
+import moment from "moment-timezone";
 import {
   createMsgTime,
   searchMember,
@@ -71,7 +72,7 @@ export const verifyClientId = async (clientId) => {
 
   // 최초등록
   const info = await SmpChat.findByClientId(clientId);
-  
+
   if (info === null) {
     const smpChat = new SmpChat({
       clientId,
@@ -146,6 +147,27 @@ export const setServerState = async (clientId, userId, state, userType) => {
   await SmpChat.updateByServerState(smpChat._id, userId, state, userType);
 
   return { result: true };
+};
+
+export const saveMessage = async (clientId, userId, message, userType) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+
+  if (!smpChat) return { result: false };
+
+  const nowDate = moment().tz("Asia/Seoul").format("YYYY년 M월 D일 H시 m분");
+
+  
+
+
+
+  // const chatLog = chat.room.chatLog;
+  // let chatLastSeq = 0;
+  // if (Object.keys(chatLog).length !== 0) {
+  //   chatLastSeq = chatLog[chat.room.chatLog.length - 1].seq;
+  // }
+  // const time = createMsgTime();
+  // await chat.updateByChatLog(time, chatLastSeq, message, user);
+  // return time;
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {
@@ -260,17 +282,6 @@ export const loadChatContent = async (name) => {
   return chatData;
 };
 
-export const saveMessage = async (user, message) => {
-  const chat = await ClientChat.findByUsername(user);
-  const chatLog = chat.room.chatLog;
-  let chatLastSeq = 0;
-  if (Object.keys(chatLog).length !== 0) {
-    chatLastSeq = chatLog[chat.room.chatLog.length - 1].seq;
-  }
-  const time = createMsgTime();
-  await chat.updateByChatLog(time, chatLastSeq, message, user);
-  return time;
-};
 export const loadRoomName = async (user, socketId) => {
   if (user) {
     const client = await ClientChat.findByUsername(user);

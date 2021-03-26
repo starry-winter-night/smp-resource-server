@@ -1,5 +1,5 @@
 import Router from "koa-router";
-import server from "socket.io";
+import Server from "socket.io";
 import { httpServer } from "../../config/chatServer";
 import fs from "fs";
 import path from "path";
@@ -15,7 +15,13 @@ import {
   saveMessage,
 } from "../../services/chat/chat.ctrl";
 
-const io = server(httpServer);
+const io = Server(httpServer, {
+  cors: {
+    origin: ["https://smpark.dev", "http://localhost:3000"],
+    methods: ["GET", "POST"],
+  },
+});
+
 const smpChat = new Router();
 
 smpChat.get("/image", (ctx) => {
@@ -69,14 +75,15 @@ smpChat.get("/", async (ctx) => {
 });
 
 // 네임스페이스를 동적으로 적용
-const smpChatIo = io.of(async (name, query, next) => {
-  next(null, true);
-});
+const smpChatIo = io.of((name, query, next) => next(null, true));
 
 smpChatIo.use(async (socket, next) => {
-  const clientId = socket.handshake.query.clientId;
-  const apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
-  const verify = await verifyManagerInfo(clientId, apiKey);
+  socket.clientId = socket.handshake.query.clientId;
+  socket.userId = socket.handshake.query.userId;
+  socket.type = await judgeUser(socket.clientId, socket.userId);
+  socket.apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
+
+  const verify = await verifyManagerInfo(socket.clientId, socket.apiKey);
 
   if (!verify.result) {
     const err = { content: verify.message };
@@ -88,22 +95,17 @@ smpChatIo.use(async (socket, next) => {
 });
 
 smpChatIo.on("connection", async (socket) => {
-  const clientId = socket.handshake.query.clientId;
-  const userId = socket.handshake.query.userId;
-
-  console.log("Connected to socket.io SpaceName");
+  console.log(`Connected to socket.io ${socket.userId}`);
 
   socketReceive(socket).disconnect();
-  socketReceive(socket).switch(clientId, userId);
+
+  socketReceive(socket).disconnecting();
+
+  socketReceive(socket).switch();
+
   socketReceive(socket).message();
 
   socketSend(socket).message();
-
-  // socket.on("disconnect", (reason) => {
-  //   // socket.emit("switch", {
-  //   //   state: await getServerState(userId),
-  //   // });
-  // });
 
   // socket.on("message", (data) => {
   //   //console.log(userId, nickName, userType);
@@ -141,17 +143,35 @@ const socketReceive = function receiveSocketContact(socket) {
         console.log(reason);
       });
     },
-    switch: (clientId, userId) => {
+    disconnecting: () => {
+      socket.on("disconnecting", (reason) => {
+        console.log(socket.userId);
+      });
+    },
+    switch: () => {
       socket.on("switch", async (state) => {
-        const type = await judgeUser(clientId, userId);
-        const setState = await setServerState(clientId, userId, state, type);
-        
+        const setState = await setServerState(
+          socket.clientId,
+          socket.userId,
+          state,
+          socket.type
+        );
+
         if (!setState.result) console.log("err");
       });
     },
     message: () => {
-      socket.on("message", (data) => {
-        console.log(data);
+      socket.on("message", async (data) => {
+        console.log("message:", data);
+        //메세지 저장
+        const msgTime = await saveMessage(
+          socket.clientId,
+          socket.userId,
+          data.message,
+          socket.type
+        );
+
+        //관리자에게 프리뷰 띄우기
       });
     },
   };
