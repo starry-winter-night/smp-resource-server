@@ -78,10 +78,9 @@ smpChat.get("/", async (ctx) => {
 const smpChatIo = io.of((name, query, next) => next(null, true));
 
 smpChatIo.use(async (socket, next) => {
+  socket.apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
   socket.clientId = socket.handshake.query.clientId;
   socket.userId = socket.handshake.query.userId;
-  socket.type = await judgeUser(socket.clientId, socket.userId);
-  socket.apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
 
   const verify = await verifyManagerInfo(socket.clientId, socket.apiKey);
 
@@ -97,13 +96,17 @@ smpChatIo.use(async (socket, next) => {
 smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
+  const userType = await judgeUser(socket.clientId, socket.userId);
+  
+  userType === "manager" ? socket.join("managers") : socket.join("clients");
+
   socketReceive(socket).disconnect();
 
   socketReceive(socket).disconnecting();
 
-  socketReceive(socket).switch();
+  socketReceive(socket).switch(userType);
 
-  socketReceive(socket).message();
+  socketReceive(socket).message(userType);
 
   socketSend(socket).message();
 });
@@ -115,6 +118,9 @@ const socketSend = function sendSocketContact(socket) {
     },
     switch: (state) => {
       socket.emit("switch", state);
+    },
+    preview: (log) => {
+      socket.to("managers").emit("preview", log);
     },
   };
 };
@@ -129,13 +135,13 @@ const socketReceive = function receiveSocketContact(socket) {
     disconnecting: () => {
       socket.on("disconnecting", (reason) => {});
     },
-    switch: () => {
+    switch: (type) => {
       socket.on("switch", async (state) => {
         const setState = await setServerState(
           socket.clientId,
           socket.userId,
           state,
-          socket.type
+          type
         );
 
         if (!setState.result) console.log("err");
@@ -143,18 +149,19 @@ const socketReceive = function receiveSocketContact(socket) {
         socketSend(socket).switch(state);
       });
     },
-    message: () => {
-      socket.on("message", async (data) => {
-        console.log("message:", data);
+    message: (type) => {
+      socket.on("message", async (msg = null, img = null) => {
         //메세지 저장
-        const msgTime = await saveMessage(
+        const msgLog = await saveMessage(
           socket.clientId,
           socket.userId,
-          data.message,
-          socket.type
+          msg,
+          img,
+          type
         );
+        
 
-        //관리자에게 프리뷰 띄우기
+        socketSend(socket).preview(msgLog);
       });
     },
   };

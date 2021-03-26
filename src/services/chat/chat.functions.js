@@ -116,36 +116,6 @@ export const loadLatestLog = (log) => {
   return data;
 };
 
-export const changeUTC = (op) => {
-  const now = new Date();
-  let utcTime = {
-    startDate: Date.UTC(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      op.startTime.hour,
-      op.startTime.minute,
-      op.startTime.second
-    ),
-    endDate: Date.UTC(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      op.endTime.hour,
-      op.endTime.minute,
-      op.endTime.second
-    ),
-  };
-
-  utcTime.startDate = utcTime.startDate - 3600000 * 9;
-  utcTime.endDate = utcTime.endDate - 3600000 * 9;
-
-  if (isNaN(utcTime.startDate) || isNaN(utcTime.endDate)) {
-    utcTime = false;
-  }
-  return utcTime;
-};
-
 export const findSameId = (list, id) => {
   let data = "";
 
@@ -187,7 +157,8 @@ export const filterSmpChatData = (smpChatDoc) => {
             break;
           }
         }
-      } else {
+      }
+      if (type === "client") {
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           if (smpChatDoc.client[i].userId === userId) {
             state = smpChatDoc.client[i].serverState;
@@ -197,6 +168,21 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
 
       return state;
+    },
+    recentSeq: (userId) => {
+      let recentSeq = null;
+
+      for (let i = 0; i < smpChatDoc.client.length; i++) {
+        if (smpChatDoc.client[i].userId === userId) {
+          const doc = smpChatDoc.client[i];
+
+          recentSeq = doc.chatLog.length + 1;
+
+          break;
+        }
+      }
+
+      return recentSeq;
     },
   };
 };

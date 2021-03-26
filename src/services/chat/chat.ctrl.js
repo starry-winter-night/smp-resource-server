@@ -77,6 +77,7 @@ export const verifyClientId = async (clientId) => {
     const smpChat = new SmpChat({
       clientId,
       chatApiKey: member.client.chatApiKey,
+      registerTime: moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm"),
     });
 
     await smpChat.save();
@@ -87,6 +88,7 @@ export const verifyClientId = async (clientId) => {
 
 export const judgeUser = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
+  
   const managerList = oauth.client.chatManagerList;
 
   if (oauth === null) {
@@ -114,7 +116,9 @@ export const registerManager = async (clientId, userId, userType) => {
 
   if (result === "exist") return;
 
-  await smpChat.updateByIdAndState(userId, "off", userType);
+  const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
+
+  await smpChat.updateByIdAndState(userId, "off", registerTime, userType);
 
   return;
 };
@@ -140,6 +144,7 @@ export const getServerState = async (clientId, userId, userType) => {
 };
 
 export const setServerState = async (clientId, userId, state, userType) => {
+  
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
@@ -149,25 +154,40 @@ export const setServerState = async (clientId, userId, state, userType) => {
   return { result: true };
 };
 
-export const saveMessage = async (clientId, userId, message, userType) => {
+export const saveMessage = async (
+  clientId,
+  userId,
+  message,
+  image,
+  userType
+) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  const nowDate = moment().tz("Asia/Seoul").format("YYYY년 M월 D일 H시 m분");
+  const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
+  const seq = filterSmpChatData(smpChat).recentSeq(userId);
+  const manager = userType === "manager" ? true : false;
+  let smpChatLogInfo = {};
 
-  
+  smpChatLogInfo = {
+    seq,
+    userId,
+    manager,
+    message,
+    image,
+    registerTime,
+  };
 
+  await SmpChat.updateByMessage(smpChat._id, smpChatLogInfo);
 
+  return smpChatLogInfo;
 
-  // const chatLog = chat.room.chatLog;
-  // let chatLastSeq = 0;
-  // if (Object.keys(chatLog).length !== 0) {
-  //   chatLastSeq = chatLog[chat.room.chatLog.length - 1].seq;
-  // }
-  // const time = createMsgTime();
-  // await chat.updateByChatLog(time, chatLastSeq, message, user);
-  // return time;
+  // 메세지오면 그냥 푸시
+
+  // 입장하면 히스토리랑 커런트 멤버에 들어가고
+  // 채팅 넣는건 멤버에 내 이름 있나 살피고
+  // 히스토리에 저장된 유저 이름 매칭해서 메세지 저장
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {

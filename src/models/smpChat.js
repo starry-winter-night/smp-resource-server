@@ -5,15 +5,18 @@ const smpChatSchema = new Schema({
   clientId: String,
   chatApiKey: String,
   nameSpace: String,
+  registerTime: String,
   manager: [
     {
       serverState: String,
       managerId: String,
+      registerTime: String,
       chatRoomHistory: [
         {
           seq: Number,
-          clientName: String,
+          userId: String,
           roomName: String,
+          registerTime: String,
         },
       ],
     },
@@ -22,15 +25,16 @@ const smpChatSchema = new Schema({
     {
       serverState: String,
       userId: String,
+      registerTime: String,
       currentMember: [],
       chatLog: [
         {
           seq: Number,
-          user: String,
-          message: String,
-          simpleTime: String,
-          currentTime: String,
+          userId: String,
           manager: String,
+          message: String,
+          image: String,
+          registerTime: String,
         },
       ],
     },
@@ -70,21 +74,29 @@ smpChatSchema.statics.updateByServerState = function (
   );
 };
 
+smpChatSchema.statics.updateByMessage = function (_id, chatLog) {
+  return this.updateOne(
+    { _id, "client.userId": chatLog.userId },
+    { $addToSet: { "client.$.chatLog": chatLog } }
+  );
+};
+
 smpChatSchema.methods.updateByIdAndState = function (
   userId,
   serverState,
+  registerTime,
   userType
 ) {
   if (userType === "manager") {
     return this.updateOne({
       $addToSet: {
-        manager: { managerId: userId, serverState },
+        manager: { managerId: userId, registerTime, serverState },
       },
     });
   }
   return this.updateOne({
     $addToSet: {
-      client: { userId, serverState },
+      client: { userId, serverState, registerTime },
     },
   });
 };
