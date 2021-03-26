@@ -28,8 +28,8 @@
             resetHTML(this.args);
 
             data.type === "manager"
-              ? managerArea(this.args)
-              : clientArea(this.args);
+              ? managerArea(this.args, data.state)
+              : clientArea(this.args, data.state);
 
             const socket = await socketURL(this.args);
 
@@ -40,6 +40,8 @@
             msgSend(socket);
 
             socketReceive(socket).connect();
+
+            socketReceive(socket).switch();
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -122,12 +124,26 @@
     return {
       connect: () => {
         socket.on("connect", () => {
-          socket.sendBuffer = [];
+          // socket.sendBuffer = [];
           console.log("server connect!!");
+        });
+      },
+      switch: () => {
+        socket.on("switch", (state) => {
+          if (state === "off") {
+            ctrlServer(socket).off();
+          }
+
+          messageHTML().systemMessage(state);
         });
       },
       preview: () => {
         socket.on("preview", (data) => {});
+      },
+      disconnect: () => {
+        socket.on("disconnect", (data) => {
+          
+        });
       },
     };
   };
@@ -174,14 +190,14 @@
     );
   };
 
-  const managerArea = function ctrlManagerChat({ domId }) {
+  const managerArea = function ctrlManagerChat({ domId }, state) {
     managerHTML(domId);
     messageHTML().noticeManager();
     chatIcon();
     dialogHeight();
   };
 
-  const clientArea = function ctrlClientChat({ domId }) {
+  const clientArea = function ctrlClientChat({ domId }, state) {
     clientHTML(domId);
     messageHTML().noticeClient();
     chatIcon();
@@ -220,9 +236,10 @@
         const state = checkbox.checked ? "on" : "off";
 
         if (state === "on") socketSend(socket).message(msg);
-        if (state === "off") messageHTML().offlineMessage(msg);
-
-        linkInfo(msg);
+        if (state === "off") {
+          messageHTML().offlineMessage(msg);
+          linkInfo(msg);
+        }
 
         scrollBottom(chatView);
 
@@ -246,7 +263,10 @@
       const state = checkbox.checked ? "on" : "off";
 
       if (state === "on") socketSend(socket).message(msg);
-      if (state === "off") messageHTML().offlineMessage(msg);
+      if (state === "off") {
+        messageHTML().offlineMessage(msg);
+        linkInfo(msg);
+      }
 
       linkInfo(msg);
 
@@ -658,46 +678,8 @@
     dialogChatAddInput.name = "smp_chat_addImg";
   };
 
-  const timeData = function createTimeDate(mSec) {
-    const changeNumberFormat = (num) => (num < 10 ? `0${num}` : num);
-
-    const today = mSec ? new Date(mSec) : new Date();
-    const year = today.getFullYear();
-    const month = changeNumberFormat(today.getMonth() + 1);
-    const day = changeNumberFormat(today.getDate());
-    const h = changeNumberFormat(today.getHours());
-    const m = changeNumberFormat(today.getMinutes());
-    const result = mSec
-      ? `${month}월 ${day}일`
-      : `${year}-${month}-${day} ${h}:${m}`;
-
-    return result;
-  };
-
-  const msgTime = function elapseMessageTime(dom) {
-    const dialogTime = dom;
-    const prevTime = new Date(dialogTime.dateTime);
-    const currentTime = new Date(timeData());
-    const elapseTime = currentTime - prevTime;
-    const minutesTime = elapseTime / (1000 * 60);
-    const hourTime = elapseTime / (1000 * 60 * 60);
-    const dayTime = elapseTime / (1000 * 60 * 60 * 24);
-    let word = "방금 전";
-
-    if (minutesTime >= 1 && hourTime < 1) {
-      word = `${minutesTime}분 전`;
-    }
-    if (hourTime >= 1 && dayTime < 1) {
-      word = `약 ${hourTime}시간 전`;
-    }
-    if (dayTime >= 1) {
-      word = timeData(currentTime - elapseTime);
-    }
-    setTimeout(() => msgTime(dom), 1000 * 60);
-    dialogTime.textContent = word;
-  };
-
   const messageHTML = function drawMessageHTML() {
+
     /*  layout  */
     const dialog = document.querySelector(".smpChat__dialog__chatView");
     const container = document.createElement("div");
@@ -726,21 +708,21 @@
 
     return {
       noticeClient: () => {
+
         /*  layout  */
         const time = document.createElement("time");
 
         /*  node  */
         const idText = document.createTextNode("smpchat");
         const noticeIdSpan = document.createTextNode("[공지사항]");
-        const noticeContentText = `안녕하세요! Third_party API SMPCHAT의 제작자 sm_Park입니다. :)
+        const noticeContentText = `안녕하세요! Third_party API SMPCHAT 제작자 sm_Park입니다 :)
         </br>다음은 SMPCHAT 이용방법 입니다.
         </br>우측상단 버튼을 클릭시 서버와 연결됩니다. 
         </br>내용을 입력 후 엔터 또는 우측하단 아이콘 클릭 시 메시지를 보냅니다. 
         </br>좌측하단 플러스 클릭 시 이미지를 보낼 수 있습니다.(1MB 이하) 
         </br>메시지 입력 시 컨트롤 + 엔터키를 통해 줄 바꿈 할 수 있습니다. 
         </br>서버 연결 전 "깃허브" 또는 "이메일"을 입력하시면 해당 링크를 얻을 수 있습니다.
-        </br><b>[채팅운영시간]</b> 
-        </br>평일 10:00 ~ 18:00 
+        </br><b>[채팅운영시간]</b></br>평일 10:00 ~ 18:00 
         </br>감사합니다 :D`;
 
         /*  appned  */
@@ -768,6 +750,7 @@
         msgTime(time);
       },
       noticeManager: () => {
+
         /*  layout  */
         const time = document.createElement("time");
 
@@ -802,15 +785,13 @@
         content.className = "smpChat__dialog__content";
         time.className = "smpChat__dialog__time";
 
-        //각자 만들어 넣는다.. 값을 생성한다. 불러온다. 넣는다..
-        // 결국 유니크값에 넣어줘야한단 얘낀데..
-
         /*  set  */
         time.setAttribute("datetime", timeData());
 
         msgTime(time);
       },
       link: (linkAddr, msg) => {
+
         /*  layout  */
         const link = document.createElement("a");
         const time = document.createElement("time");
@@ -846,6 +827,7 @@
         msgTime(time);
       },
       offlineMessage: (msg) => {
+
         /*  layout  */
         const offline = document.createElement("p");
         const time = document.createElement("time");
@@ -871,7 +853,78 @@
 
         msgTime(time);
       },
+      systemMessage: (state, msg = false) => {
+
+        /*  layout  */
+        const systemBar = document.createElement("div");
+        const systemMsg = document.createElement("p");
+
+        /*  node  */
+        let systemMsgText = null;
+
+        if (state === "on" && !msg) {
+          systemMsgText = document.createTextNode("서버에 연결되었습니다.");
+        }
+
+        if (state === "off" && !msg) {
+          systemMsgText = document.createTextNode(
+            "서버에 연결되지 않았습니다."
+          );
+        }
+
+        if (state === "on" && msg) {
+          systemMsgText = document.createTextNode(msg);
+        }
+
+        /*  appned  */
+        systemMsg.appendChild(systemMsgText);
+        systemBar.appendChild(systemMsg);
+        dialog.appendChild(systemBar);
+
+        /*  className & id   */
+        systemBar.className = "smpChat__dialog__systemBar";
+        systemMsg.className = "smpChat__dialog__systemMsg";
+
+        scrollBottom(dialog);
+      },
     };
+  };
+
+  const timeData = function createTimeDate(mSec) {
+    const changeNumberFormat = (num) => (num < 10 ? `0${num}` : num);
+
+    const today = mSec ? new Date(mSec) : new Date();
+    const year = today.getFullYear();
+    const month = changeNumberFormat(today.getMonth() + 1);
+    const day = changeNumberFormat(today.getDate());
+    const h = changeNumberFormat(today.getHours());
+    const m = changeNumberFormat(today.getMinutes());
+    const result = mSec
+      ? `${month}월 ${day}일`
+      : `${year}-${month}-${day} ${h}:${m}`;
+
+    return result;
+  };
+
+  const msgTime = function elapseMessageTime(dom) {
+    const dialogTime = dom;
+    const prevTime = new Date(dialogTime.dateTime);
+    const currentTime = new Date(timeData());
+    const elapseTime = currentTime - prevTime;
+    const minutesTime = Math.floor(elapseTime / (1000 * 60));
+    const hourTime = Math.floor(elapseTime / (1000 * 60 * 60));
+    const dayTime = Math.floor(elapseTime / (1000 * 60 * 60 * 24));
+    let word = "방금 전";
+
+    if (minutesTime >= 1 && hourTime < 1) word = `${minutesTime}분 전`;
+
+    if (hourTime >= 1 && dayTime < 1) word = `약 ${hourTime}시간 전`;
+
+    if (dayTime >= 1) word = timeData(currentTime - elapseTime);
+
+    setTimeout(() => msgTime(dom), 1000 * 60);
+
+    dialogTime.textContent = word;
   };
 
   const chatIcon = function toggleChatView() {
@@ -958,6 +1011,8 @@
 
     // 커서를 줄 바꿈한 직후 상태의 포지션에 적용
     e.target.selectionEnd = lineBreakCursorPosition;
+
+    return;
   };
 
   const styleValue = function getStyleValue(dom, propName) {
@@ -971,20 +1026,25 @@
 
   const changeScroll = function changeScrollMaxHeight(dom) {
     const maxHeight = removeStr(styleValue(dom, "max-height"));
+
     if (dom.offsetHeight >= maxHeight) {
       dom.style.overflowY = "scroll";
     } else {
       dom.style.overflowY = "hidden";
     }
+
+    return;
   };
 
   const textFocus = function focusTextAreaCursor(input) {
     input.blur();
     input.focus();
+    return;
   };
 
   const scrollBottom = function fixScrollBottom(dom) {
     dom.scrollTop = dom.scrollHeight;
+    return;
   };
 
   const serverCtrl = function ctrlServerConnect(socket, state) {
@@ -994,19 +1054,26 @@
     if (!checkbox) return;
 
     checkbox.addEventListener("click", async () => {
+      state = !checkbox.checked ? "off" : "on";
+
       if (!checkbox.checked) {
-        socketSend(socket).serverSwitch("off");
-        ctrlServer(socket).off();
+        socketSend(socket).serverSwitch(state);
         return;
       }
 
       ctrlServer(socket).on();
-      socketSend(socket).serverSwitch("on");
+      socketSend(socket).serverSwitch(state);
+      return;
     });
 
     if (state === "on") {
       ctrlServer(socket).on();
-      socketSend(socket).serverSwitch("on");
+      socketSend(socket).serverSwitch(state);
+      return;
+    }
+
+    if (state === "off") {
+      messageHTML().systemMessage(state);
     }
   };
 
@@ -1022,11 +1089,11 @@
       document.querySelector(".smpChat__connect__switchInput") ||
       document.querySelector(".smpChat__dialog__switchInput");
     if (state === "on") {
-      checkbox.checked = true;
+      return (checkbox.checked = true);
     }
 
     if (state === "off") {
-      checkbox.checked = false;
+      return (checkbox.checked = false);
     }
   };
 

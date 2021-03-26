@@ -106,32 +106,15 @@ smpChatIo.on("connection", async (socket) => {
   socketReceive(socket).message();
 
   socketSend(socket).message();
-
-  // socket.on("message", (data) => {
-  //   //console.log(userId, nickName, userType);
-  //   if (userType === "client") {
-  //     socket.join(userId, async () => {
-  //       await createRoom(userId, nickName);
-  //       const msgTime = await saveMessage(userId, data.message);
-  //       console.log(msgTime);
-  //       socket.emit("preview", {
-  //         message: data.message,
-  //         username: userId,
-  //         nickName,
-  //         msgTime,
-  //       });
-  //       // 메세지를 저장하고
-  //       // 메세지를 관리자들에게 프리뷰로 띄우고
-  //       // 관리자는 프리뷰 눌러서 조인 하자.
-  //     });
-  //   }
-  // });
 });
 
 const socketSend = function sendSocketContact(socket) {
   return {
     message: (msg) => {
       socket.emit("message", { message: "smp 채팅서버에 접속하였습니다." });
+    },
+    switch: (state) => {
+      socket.emit("switch", state);
     },
   };
 };
@@ -144,9 +127,7 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     disconnecting: () => {
-      socket.on("disconnecting", (reason) => {
-        console.log(socket.userId);
-      });
+      socket.on("disconnecting", (reason) => {});
     },
     switch: () => {
       socket.on("switch", async (state) => {
@@ -158,6 +139,8 @@ const socketReceive = function receiveSocketContact(socket) {
         );
 
         if (!setState.result) console.log("err");
+
+        socketSend(socket).switch(state);
       });
     },
     message: () => {
@@ -176,149 +159,5 @@ const socketReceive = function receiveSocketContact(socket) {
     },
   };
 };
-
-//   // 서버가 재연결 되었을 경우 room 처리
-
-//   // 관리자 알람(preview)
-//   socket.on("alarm", async () => {
-//     const preview = await loadPreviewContent();
-//     const reconnResult = await reconnectRoom(socket.id);
-//     verifySocket.emit("preview", {
-//       collection: preview,
-//       name: reconnResult,
-//     });
-//   });
-
-//   socket.on("managerReJoin", async (data) => {
-//     const username = data.name;
-//     const socketId = socket.id;
-//     let loadRoom = await loadRoomName(username, socketId);
-//     if (loadRoom.result) {
-//       if (loadRoom.result === "already") {
-//         const chatData = await loadChatContent(username);
-//         socket.join(loadRoom.roomName, () => {
-//           verifySocket.to(loadRoom.roomName).emit("message", {
-//             type: "managerDialog",
-//             name: username,
-//             chatLog: chatData.chatLog,
-//           });
-//         });
-//       }
-//     }
-//   });
-
-//   socket.on("complete", async (data) => {
-//     const username = data.name;
-//     const socketId = socket.id;
-//     const leaveRoomResult = await leaveRoom(username, socketId);
-//     if (leaveRoomResult.result) {
-//       socket.leave(leaveRoomResult.roomName);
-//       verifySocket.to(leaveRoomResult.roomName).emit("message", {
-//         type: "system",
-//         message: `${data.managerName}님이 퇴장하셨습니다.`,
-//       });
-//       verifySocket.to(socketId).emit("complete", {
-//         complete: true,
-//         user: username,
-//       });
-//       // verifySocket.to(socketId).emit("message", {
-//       //   type: "managerDialog",
-//       //   name: "",
-//       //   chatLog: "",
-//       // });
-//     } else {
-//       console.log("complete 오류");
-//     }
-//   });
-
-//   socket.on("roomEnterExit", async (data) => {
-//     //매니저를 구분하는건 소켓아이디 밖에 없음..
-//     const username = data.name;
-//     const socketId = socket.id;
-
-//     let loadRoom = await loadRoomName(username, socketId);
-//     if (loadRoom.result === "leave") {
-//       socket.leave(loadRoom.roomName);
-//       loadRoom = await loadRoomName(username, socketId);
-//     } else if (loadRoom.result === "another") {
-//       return console.log("다른 매니저가 채팅중");
-//     } else if (loadRoom.result === "already") {
-//       return console.log("이미 접속중인 채팅룸");
-//     } else if (!loadRoom.result) {
-//       return console.log("에러 발생");
-//     }
-//     const chatData = await loadChatContent(username);
-
-//     socket.join(loadRoom.roomName, () => {
-//       verifySocket.to(loadRoom.roomName).emit("message", {
-//         type: "managerDialog",
-//         name: username,
-//         chatLog: chatData.chatLog,
-//       });
-//       verifySocket.to(loadRoom.roomName).emit("message", {
-//         type: "title",
-//         title: data.managerName,
-//       });
-//       verifySocket.to(loadRoom.roomName).emit("message", {
-//         type: "system",
-//         message: `${data.managerName}님이 입장하였습니다.`,
-//       });
-//     });
-//   });
-
-//   // room 참여
-//   socket.on("joinRoom", async (data) => {
-//     const socketId = socket.id;
-//     const name = data.username;
-//     const roomName = await createRoom(name, socketId);
-//     const chatData = await loadChatContent(name);
-//     socket.join(roomName, () => {
-//       verifySocket.emit("message", {
-//         type: "dialog",
-//         name: name,
-//         chatLog: chatData.chatLog,
-//       });
-//       // 채팅방에 혼자가 아니라면..
-//       if (chatData.managerNickName !== null) {
-//         verifySocket.to(roomName).emit("message", {
-//           type: "title",
-//           title: chatData.managerNickName,
-//         });
-//       }
-//     });
-//   });
-
-//   socket.on("message", async (data) => {
-//     const saveResult = await saveChatContent(data);
-//     if (!saveResult.result) {
-//       socket.disconnect();
-//       return;
-//     }
-
-//     verifySocket.emit("preview", {
-//       name: data.username,
-//       message: data.message,
-//       time: saveResult.time.messageViewTime,
-//       status: saveResult.status,
-//       member: saveResult.member,
-//     });
-//     // 현재 시간과 메세지 시간의 날짜가 다르면 시스템 메세지에 현재 시간 넣기.
-//     verifySocket.to(saveResult.roomName).emit("message", {
-//       type: "message",
-//       name: data.username,
-//       logUser: saveResult.user,
-//       message: data.message,
-//       time: saveResult.time.messageViewTime,
-//     });
-//   });
-
-//   socket.on("close", (reason) => {
-//     socket.disconnect();
-//   });
-
-//   socket.on("scrollLoad", async (data) => {
-//     console.log(data);
-//   });
-// });
 
 export default smpChat;
