@@ -26,7 +26,7 @@ const smpChatSchema = new Schema({
       serverState: String,
       userId: String,
       registerTime: String,
-      currentMember: [],
+      roomMember: [],
       chatLog: [
         {
           seq: Number,
@@ -71,6 +71,13 @@ smpChatSchema.statics.updateByServerState = function (
   return this.updateOne(
     { _id, "client.userId": userId },
     { $set: { "client.$.serverState": serverState } }
+  );
+};
+
+smpChatSchema.statics.updateByRoomMember = function (_id, userId) {
+  return this.updateOne(
+    { _id, "client.userId": userId },
+    { $addToSet: { "client.$.roomMember": userId } }
   );
 };
 

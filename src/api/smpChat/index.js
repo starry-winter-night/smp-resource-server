@@ -11,7 +11,8 @@ import {
   registerManager,
   getServerState,
   setServerState,
-  createRoom,
+  joinRoomMember,
+  getPreview,
   saveMessage,
 } from "../../services/chat/chat.ctrl";
 
@@ -97,8 +98,15 @@ smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
   const userType = await judgeUser(socket.clientId, socket.userId);
-  
-  userType === "manager" ? socket.join("managers") : socket.join("clients");
+
+  if (userType === "manager") {
+    socket.join("managers");
+    socketSend(socket).preview(await getPreview(socket.clientId));
+  }
+
+  if (userType === "client") {
+    socket.join("clients");
+  }
 
   socketReceive(socket).disconnect();
 
@@ -107,8 +115,6 @@ smpChatIo.on("connection", async (socket) => {
   socketReceive(socket).switch(userType);
 
   socketReceive(socket).message(userType);
-
-  socketSend(socket).message();
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -120,7 +126,12 @@ const socketSend = function sendSocketContact(socket) {
       socket.emit("switch", state);
     },
     preview: (log) => {
+      if (log.state === "refresh") {
+        socket.emit("preview", log.chatLog);
+        return;
+      }
       socket.to("managers").emit("preview", log);
+      return;
     },
   };
 };
@@ -151,7 +162,6 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     message: (type) => {
       socket.on("message", async (msg = null, img = null) => {
-        //메세지 저장
         const msgLog = await saveMessage(
           socket.clientId,
           socket.userId,
@@ -159,7 +169,7 @@ const socketReceive = function receiveSocketContact(socket) {
           img,
           type
         );
-        
+        await joinRoomMember(socket.clientId, socket.userId, type);
 
         socketSend(socket).preview(msgLog);
       });

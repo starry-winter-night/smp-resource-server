@@ -4,7 +4,7 @@ import {
   searchMember,
   searchChatRoomInfo,
   searchPrevClientName,
-  loadLatestLog,
+  checkFunctionSpeed,
   changeUTC,
   findSameId,
   filterSmpChatData,
@@ -88,7 +88,7 @@ export const verifyClientId = async (clientId) => {
 
 export const judgeUser = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
-  
+
   const managerList = oauth.client.chatManagerList;
 
   if (oauth === null) {
@@ -144,7 +144,6 @@ export const getServerState = async (clientId, userId, userType) => {
 };
 
 export const setServerState = async (clientId, userId, state, userType) => {
-  
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
@@ -169,6 +168,7 @@ export const saveMessage = async (
   const seq = filterSmpChatData(smpChat).recentSeq(userId);
   const manager = userType === "manager" ? true : false;
   let smpChatLogInfo = {};
+  const logArr = [];
 
   smpChatLogInfo = {
     seq,
@@ -179,15 +179,38 @@ export const saveMessage = async (
     registerTime,
   };
 
+  logArr.push(smpChatLogInfo);
+
   await SmpChat.updateByMessage(smpChat._id, smpChatLogInfo);
 
-  return smpChatLogInfo;
+  return logArr;
+};
 
-  // 메세지오면 그냥 푸시
+export const joinRoomMember = async (clientId, userId, userType) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
 
-  // 입장하면 히스토리랑 커런트 멤버에 들어가고
-  // 채팅 넣는건 멤버에 내 이름 있나 살피고
-  // 히스토리에 저장된 유저 이름 매칭해서 메세지 저장
+  if (!smpChat) return { result: false };
+
+  if (userType === "client") {
+    await SmpChat.updateByRoomMember(smpChat._id, userId);
+  }
+
+  if (userType === "manager") {
+  }
+};
+
+export const getPreview = async (clientId) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+
+  if (!smpChat) return { result: false };
+
+  const userList = filterSmpChatData(smpChat).requestChatUsers();
+
+  const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
+
+  if (chatLogs.length === 0) return;
+
+  return { state: "refresh", chatLogs };
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {

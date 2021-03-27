@@ -154,6 +154,7 @@ export const filterSmpChatData = (smpChatDoc) => {
         for (let i = 0; i < smpChatDoc.manager.length; i++) {
           if (smpChatDoc.manager[i].managerId === userId) {
             state = smpChatDoc.manager[i].serverState;
+
             break;
           }
         }
@@ -162,6 +163,7 @@ export const filterSmpChatData = (smpChatDoc) => {
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           if (smpChatDoc.client[i].userId === userId) {
             state = smpChatDoc.client[i].serverState;
+
             break;
           }
         }
@@ -184,5 +186,57 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       return recentSeq;
     },
+    requestChatUsers: () => {
+      const member = smpChatDoc.client
+        .map((list) => list.roomMember)
+        .filter((member) => member.length === 1)
+        .map((id) => id[0]);
+
+      return member;
+    },
+    recentChatLogs: (userList) => {
+      const recentChatLogs = [];
+
+      for (let i = 0; i < userList.length; i++) {
+        for (let j = 0; j < smpChatDoc.client.length; j++) {
+          const userId = smpChatDoc.client[i].userId;
+
+          if (userList[i] === userId) {
+            const chatLog = smpChatDoc.client[i].chatLog;
+
+            recentChatLogs.push(chatLog[chatLog.length - 1]);
+
+            break;
+          }
+        }
+      }
+
+      return recentChatLogs;
+      
+      // 보기는 편하지만 속도가 느리다.
+      // userList.filter((userId) => {
+      //   smpChatDoc.client.filter((list) => {
+      //     if (userId === list.userId) {
+      //       recentChatLogs.push(list.chatLog[list.chatLog.length - 1]);
+      //     }
+      //   });
+      // });
+
+   
+
+    },
   };
+};
+
+export const checkFunctionSpeed = (func, cnt, params) => {
+  const startTime = new Date().getTime();
+  const executeCount = cnt;
+
+  for (let i = 0; i < executeCount; i++) {
+    func(params.smpChat).recentChatLogs(params.userList);
+  }
+  const endTime = new Date().getTime();
+  const elapsed = endTime - startTime;
+
+  return elapsed;
 };

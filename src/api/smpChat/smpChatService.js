@@ -141,7 +141,8 @@
       },
       preview: () => {
         socket.on("preview", (info) => {
-          messageHTML().preview(info);
+          console.log(info)
+          //messageHTML().preview(info);
         });
       },
       disconnect: () => {
