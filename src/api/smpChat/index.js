@@ -75,15 +75,14 @@ smpChat.get("/", async (ctx) => {
   ctx.body = { type, state };
 });
 
-// 네임스페이스를 동적으로 적용
+// 네임스페이스 동적 적용
 const smpChatIo = io.of((name, query, next) => next(null, true));
 
 smpChatIo.use(async (socket, next) => {
-  socket.apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
-  socket.clientId = socket.handshake.query.clientId;
-  socket.userId = socket.handshake.query.userId;
+  const clientId = socket.handshake.query.clientId;
+  const apiKey = socket.nsp.name.substring(1, socket.nsp.name.length);
 
-  const verify = await verifyManagerInfo(socket.clientId, socket.apiKey);
+  const verify = await verifyManagerInfo(clientId, apiKey);
 
   if (!verify.result) {
     const err = { content: verify.message };
@@ -91,30 +90,28 @@ smpChatIo.use(async (socket, next) => {
     return;
   }
 
+  socket.clientId = clientId;
+  socket.apiKey = apiKey;
+  socket.userId = socket.handshake.query.userId;
+  socket.userType = await judgeUser(socket.clientId, socket.userId);
+
   next();
 });
 
 smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
-  const userType = await judgeUser(socket.clientId, socket.userId);
+  socket.join(socket.userType);
 
-  if (userType === "manager") {
-    socket.join("managers");
-    socketSend(socket).preview(await getPreview(socket.clientId));
-  }
-
-  if (userType === "client") {
-    socket.join("clients");
-  }
+  socketSend(socket).preview();
 
   socketReceive(socket).disconnect();
 
   socketReceive(socket).disconnecting();
 
-  socketReceive(socket).switch(userType);
+  socketReceive(socket).switch();
 
-  socketReceive(socket).message(userType);
+  socketReceive(socket).message();
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -125,13 +122,14 @@ const socketSend = function sendSocketContact(socket) {
     switch: (state) => {
       socket.emit("switch", state);
     },
-    preview: (log) => {
-      if (log.state === "refresh") {
-        socket.emit("preview", log.chatLog);
-        return;
+    preview: async (log = null) => {
+      if (log) socket.to("manager").emit("preview", log);
+
+      if (socket.userType === "manager") {
+        log = await getPreview(socket.clientId);
+
+        if (log) socket.emit("preview", log);
       }
-      socket.to("managers").emit("preview", log);
-      return;
     },
   };
 };
@@ -146,13 +144,13 @@ const socketReceive = function receiveSocketContact(socket) {
     disconnecting: () => {
       socket.on("disconnecting", (reason) => {});
     },
-    switch: (type) => {
+    switch: () => {
       socket.on("switch", async (state) => {
         const setState = await setServerState(
           socket.clientId,
           socket.userId,
           state,
-          type
+          socket.userType
         );
 
         if (!setState.result) console.log("err");
@@ -160,16 +158,16 @@ const socketReceive = function receiveSocketContact(socket) {
         socketSend(socket).switch(state);
       });
     },
-    message: (type) => {
+    message: () => {
       socket.on("message", async (msg = null, img = null) => {
         const msgLog = await saveMessage(
           socket.clientId,
           socket.userId,
           msg,
           img,
-          type
+          socket.userType
         );
-        await joinRoomMember(socket.clientId, socket.userId, type);
+        await joinRoomMember(socket.clientId, socket.userId, socket.userType);
 
         socketSend(socket).preview(msgLog);
       });

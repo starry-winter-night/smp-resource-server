@@ -212,18 +212,6 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
 
       return recentChatLogs;
-      
-      // 보기는 편하지만 속도가 느리다.
-      // userList.filter((userId) => {
-      //   smpChatDoc.client.filter((list) => {
-      //     if (userId === list.userId) {
-      //       recentChatLogs.push(list.chatLog[list.chatLog.length - 1]);
-      //     }
-      //   });
-      // });
-
-   
-
     },
   };
 };

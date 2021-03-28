@@ -210,7 +210,7 @@ export const getPreview = async (clientId) => {
 
   if (chatLogs.length === 0) return;
 
-  return { state: "refresh", chatLogs };
+  return chatLogs;
 };
 
 export const chatSocketIdSetting = async (clientId, socketId) => {
