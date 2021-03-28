@@ -132,21 +132,6 @@ export const findSameId = (list, id) => {
 
 export const filterSmpChatData = (smpChatDoc) => {
   return {
-    id: (userId, type) => {
-      let idList = null;
-
-      if (type === "manager") {
-        idList = smpChatDoc.manager.map((list) => list.managerId);
-      } else {
-        idList = smpChatDoc.client.map((list) => list.userId);
-      }
-
-      if (idList.length === 0) return "nonExist";
-
-      const id = findSameId(idList, userId);
-
-      return id ? "exist" : "nonExist";
-    },
     state: (userId, type) => {
       let state = null;
 
@@ -210,8 +195,27 @@ export const filterSmpChatData = (smpChatDoc) => {
           }
         }
       }
-
       return recentChatLogs;
+    },
+    chatLog: (userId, dialogNum) => {
+      let dialog = [];
+      let clientLength = smpChatDoc.client.length;
+
+      for (let i = 0; i < clientLength; i++) {
+        if (smpChatDoc.client[i].userId === userId) {
+          const chatLogLength = smpChatDoc.client[i].chatLog.length;
+          const getLogNum = chatLogLength - dialogNum;
+
+          for (let j = getLogNum; j < chatLogLength; j++) {
+            const chatLog = smpChatDoc.client[i].chatLog[j];
+
+            dialog.push(chatLog);
+          }
+
+          break;
+        }
+      }
+      return dialog;
     },
   };
 };
@@ -221,7 +225,7 @@ export const checkFunctionSpeed = (func, cnt, params) => {
   const executeCount = cnt;
 
   for (let i = 0; i < executeCount; i++) {
-    func(params.smpChat).recentChatLogs(params.userList);
+    func(params);
   }
   const endTime = new Date().getTime();
   const elapsed = endTime - startTime;

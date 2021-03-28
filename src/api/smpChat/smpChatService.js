@@ -33,7 +33,7 @@
 
             const socket = await socketURL(this.args);
 
-            switchState(data.state);
+            changeSwitch(data.state);
 
             refleshConn(socket, data.state);
 
@@ -46,6 +46,8 @@
             socketReceive(socket).switch();
 
             socketReceive(socket).preview();
+
+            socketReceive(socket).dialog();
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -61,26 +63,6 @@
         }
         async init(userId) {
           try {
-            userId
-              ? (this.userId = userId)
-              : (this.userId = processNonLoginUser());
-
-            const socket = connectClientURL(
-              this.clientId,
-              this.api,
-              this.userId
-            );
-
-            function useSocketArea() {
-              socket.on("connect", () => {
-                messageSocket();
-              });
-              function messageSocket() {
-                socket.on("message", (data) => {
-                  console.log(data.message);
-                });
-              }
-            }
             function processNonLoginUser() {
               let uid = null;
               const getUid = localStorage.getItem("nonUserId");
@@ -92,29 +74,8 @@
               }
               return uid;
             }
-            function errSocketArea(socket) {
-              socket.on("connect_error", (err) => console.log(err));
-              socket.on("connect_failed", (err) => console.log(err));
-              socket.on("disconnect", (err) => console.log(err));
-              socket.on("error", (err) => console.log(err.content));
-            }
-
             function createUID() {
               return Math.random().toString(36).substring(2, 8) + +new Date();
-            }
-
-            function connectClientURL(clientId, apiKey, userId) {
-              return io(
-                `ws://localhost:7000/${apiKey}?CLIENTID=${clientId}&USERID=${userId}`
-              );
-            }
-
-            function drawingManagerChat(domId, data) {
-              if (!domId)
-                throw new SmpChatError("관리자 채팅 domId를 설정해주세요.");
-              Manager.commonHTML(domId);
-              managerHTML(domId);
-              ctrlButtonSwitch(data.state);
             }
           } catch (e) {
             SmpChatError.errHandle(e);
@@ -138,12 +99,22 @@
             connServer(socket).off();
           }
 
-          messageHTML().systemMessage(state);
+          contentsHTML().systemAlarm(state);
         });
       },
       preview: () => {
         socket.on("preview", (info) => {
-          info.forEach((logs) => messageHTML().preview(logs));
+          info.forEach((logs) => {
+            contentsHTML().preview(logs);
+            joinRoom(socket, logs.userId);
+          });
+        });
+      },
+      dialog: () => {
+        socket.on("dialog", (dialog) => {
+          dialog.forEach((logs) => {
+            contentsHTML().dialog(logs);
+          });
         });
       },
       disconnect: () => {
@@ -159,6 +130,9 @@
       },
       message: (msg) => {
         socket.emit("message", msg);
+      },
+      dialog: (userId) => {
+        socket.emit("dialog", userId);
       },
     };
   };
@@ -239,7 +213,7 @@
 
         if (state === "on") socketSend(socket).message(msg);
         if (state === "off") {
-          messageHTML().offlineMessage(msg);
+          contentsHTML().offlineMessage(msg);
           linkInfo(msg);
         }
 
@@ -266,7 +240,7 @@
 
       if (state === "on") socketSend(socket).message(msg);
       if (state === "off") {
-        messageHTML().offlineMessage(msg);
+        contentsHTML().offlineMessage(msg);
         linkInfo(msg);
       }
 
@@ -296,7 +270,7 @@
     ) {
       const linkAddr = "https://github.com/starry-winter-night";
       const gitAddr = "github.com/starry-winter-night";
-      messageHTML().link(linkAddr, gitAddr);
+      contentsHTML().link(linkAddr, gitAddr);
     }
 
     if (
@@ -307,7 +281,7 @@
     ) {
       const linkAddr = "mailto:smpark7723@gmail.com";
       const gitAddr = "smpark7723@gmail.com";
-      messageHTML().link(linkAddr, gitAddr);
+      contentsHTML().link(linkAddr, gitAddr);
     }
   };
 
@@ -680,7 +654,7 @@
     dialogChatAddInput.name = "smp_chat_addImg";
   };
 
-  const messageHTML = function drawMessageHTML() {
+  const contentsHTML = function drawContentHTML() {
     /*  layout  */
     const connect = document.querySelector(".smpChat__connect__list");
     const dialog = document.querySelector(".smpChat__dialog__chatView");
@@ -734,7 +708,7 @@
 
         /*  className & id   */
         container.className = "smpChat__dialog__containerLeft";
-        contentsContainer.className = "smpChat__dialog__contentLeft";
+        contentsContainer.className = "smpChat__dialog__contentContainerLeft";
         profile.className = "smpChat__dialog__profile";
         profileImage.className = "smpChat__dialog__profileImage";
         content.className = "smpChat__dialog__content";
@@ -768,7 +742,7 @@
 
         /*  className & id   */
         container.className = "smpChat__dialog__containerLeft";
-        contentsContainer.className = "smpChat__dialog__contentLeft";
+        contentsContainer.className = "smpChat__dialog__contentContainerLeft";
         profile.className = "smpChat__dialog__profile";
         profileImage.className = "smpChat__dialog__profileImage";
         link.className = "smpChat__dialog__content";
@@ -784,6 +758,61 @@
         /*  function  */
         msgTime(time);
       },
+      dialog: (logs) => {
+        const { seq, userId, manager, message, image, registerTime } = logs;
+
+        /*  node  */
+        const onMessage = document.createTextNode(message);
+        const idText = document.createTextNode(userId);
+
+        if (manager === "true") {
+          /*  appned  */
+          id.appendChild(idText);
+          profile.appendChild(profileImage);
+          profile.appendChild(id);
+          profile.appendChild(span);
+          profile.appendChild(time);
+          container.appendChild(profile);
+          container.appendChild(contentsContainer);
+
+          /*  className & id   */
+          id.className = "smpChat__dialog__id";
+          profile.className = "smpChat__dialog__profile";
+          profileImage.className = "smpChat__dialog__profileImage";
+          container.className = `smpChat__dialog__containerLeft smpChat__dialog__containerRight_${userId}`;
+          contentsContainer.className = "smpChat__dialog__contentContainerLeft";
+        }
+
+        if (manager === "false") {
+          /*  appned  */
+          container.appendChild(time);
+          container.appendChild(contentsContainer);
+
+          /*  className & id   */
+          container.className = `smpChat__dialog__containerRight smpChat__dialog__containerRight_${userId}`;
+          contentsContainer.className =
+            "smpChat__dialog__contentContainerRight";
+        }
+
+        /*  appned  */
+        content.appendChild(onMessage);
+        contentsContainer.appendChild(content);
+        dialog.appendChild(container);
+
+        /*  className & id   */
+        content.className = `smpChat__dialog__content smpChat__dialog__content_${userId}`;
+        time.className = `smpChat__dialog__time smpChat__dialog__time_${userId}`;
+
+        /*  set  */
+        time.setAttribute("datetime", registerTime);
+        content.dataset.seq = seq;
+
+        /*  function  */
+        msgTime(time);
+        scrollBottom(dialog);
+
+        return;
+      },
       offlineMessage: (msg) => {
         /*  node  */
         const offMessage = document.createTextNode(msg);
@@ -797,7 +826,7 @@
 
         /*  className & id   */
         container.className = "smpChat__dialog__containerRight";
-        contentsContainer.className = "smpChat__dialog__contentRight";
+        contentsContainer.className = "smpChat__dialog__contentContainerRight";
         content.className = "smpChat__dialog__content";
         time.className = "smpChat__dialog__time";
 
@@ -806,8 +835,10 @@
 
         /*  function  */
         msgTime(time);
+
+        return;
       },
-      systemMessage: (state, msg = false) => {
+      systemAlarm: (state, msg = false) => {
         /*  layout  */
         const container = document.createElement("div");
         const content = document.createElement("p");
@@ -841,7 +872,9 @@
         /*  function  */
         scrollBottom(dialog);
       },
-      preview: ({ userId, message, registerTime, image }) => {
+      preview: (logs) => {
+        const { userId, message, registerTime, image } = logs;
+
         const prevId = document.querySelector(
           `.smpChat__connect__id_${userId}`
         );
@@ -862,7 +895,7 @@
           connect.appendChild(container);
 
           /*  className & id   */
-          container.className = "smpChat__connect__container";
+          container.className = `smpChat__connect__container smpChat__connect__container_${userId}`;
           id.className = `smpChat__connect__id smpChat__connect__id_${userId}`;
           time.className = `smpChat__connect__time smpChat__connect__time_${userId}`;
           content.className = `smpChat__connect__content smpChat__connect__content_${userId}`;
@@ -1062,8 +1095,8 @@
     }
 
     if (state === "off") {
-      messageHTML().noticeClient();
-      messageHTML().systemMessage(state);
+      contentsHTML().noticeClient();
+      contentsHTML().systemAlarm(state);
 
       return;
     }
@@ -1100,7 +1133,7 @@
     };
   };
 
-  const switchState = function changeSwitchState(state) {
+  const changeSwitch = function changeSwitchState(state) {
     const checkbox =
       document.querySelector(".smpChat__connect__switchInput") ||
       document.querySelector(".smpChat__dialog__switchInput");
@@ -1110,6 +1143,22 @@
 
     if (state === "off") {
       return (checkbox.checked = false);
+    }
+  };
+
+  const joinRoom = function joinChatRoom(socket, userId) {
+    const room = document.querySelector(
+      `.smpChat__connect__container_${userId}`
+    );
+
+    if (room) {
+      room.addEventListener("click", (e) => {
+        socketSend(socket).dialog(userId);
+
+        e.preventDefault();
+      });
+
+      return;
     }
   };
 

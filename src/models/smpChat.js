@@ -42,11 +42,30 @@ const smpChatSchema = new Schema({
 });
 
 smpChatSchema.statics.findByClientId = function (clientId) {
-  return this.findOne({ clientId });
+  return this.findOne(
+    { clientId },
+    { chatApiKey: false, "client.chatLog._id": false }
+  );
 };
 
 smpChatSchema.statics.findByChatApiKey = function (chatApiKey) {
-  return this.findOne({ chatApiKey });
+  return this.findOne({ chatApiKey }, { clientId: true, chatApiKey: true });
+};
+
+smpChatSchema.statics.findByUserId = function (clientId, userId, type) {
+  if (type === "manager") {
+    return this.findOne(
+      { clientId, "manager.managerId": userId },
+      { "manager.managerId": true }
+    );
+  }
+
+  if (type === "client") {
+    return this.findOne(
+      { clientId, "client.userId": userId },
+      { "client.userId": true }
+    );
+  }
 };
 
 /* update를 statics로 사용한 이유 : 

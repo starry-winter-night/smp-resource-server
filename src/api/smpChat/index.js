@@ -14,6 +14,7 @@ import {
   joinRoomMember,
   getPreview,
   saveMessage,
+  loadDialog,
 } from "../../services/chat/chat.ctrl";
 
 const io = Server(httpServer, {
@@ -91,7 +92,6 @@ smpChatIo.use(async (socket, next) => {
   }
 
   socket.clientId = clientId;
-  socket.apiKey = apiKey;
   socket.userId = socket.handshake.query.userId;
   socket.userType = await judgeUser(socket.clientId, socket.userId);
 
@@ -112,6 +112,8 @@ smpChatIo.on("connection", async (socket) => {
   socketReceive(socket).switch();
 
   socketReceive(socket).message();
+
+  socketReceive(socket).dialog();
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -130,6 +132,9 @@ const socketSend = function sendSocketContact(socket) {
 
         if (log) socket.emit("preview", log);
       }
+    },
+    dialog: (log = null) => {
+      if (log) socket.emit("dialog", log);
     },
   };
 };
@@ -170,6 +175,13 @@ const socketReceive = function receiveSocketContact(socket) {
         await joinRoomMember(socket.clientId, socket.userId, socket.userType);
 
         socketSend(socket).preview(msgLog);
+      });
+    },
+    dialog: () => {
+      socket.on("dialog", async (userId) => {
+        const dialog = await loadDialog(socket.clientId, userId);
+
+        socketSend(socket).dialog(dialog);
       });
     },
   };

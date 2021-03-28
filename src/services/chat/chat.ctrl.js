@@ -89,36 +89,28 @@ export const verifyClientId = async (clientId) => {
 export const judgeUser = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
 
+  if (oauth === null) return "oauth null";
+
   const managerList = oauth.client.chatManagerList;
 
-  if (oauth === null) {
-    return false;
-  }
+  if (managerList.length === 0) return "managerList null";
 
   const id = findSameId(managerList, userId);
-  let userType = "";
-
-  if (!id) {
-    userType = "client";
-
-    return userType;
-  }
-
-  userType = "manager";
+  const userType = !id ? "client" : "manager";
 
   return userType;
 };
 
 export const registerManager = async (clientId, userId, userType) => {
-  const smpChat = await SmpChat.findByClientId(clientId);
+  const getIds = await SmpChat.findByUserId(clientId, userId, userType);
 
-  const result = filterSmpChatData(smpChat).id(userId, userType);
+  if (getIds === null) {
+    const regTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
+    const serverState = "off";
 
-  if (result === "exist") return;
-
-  const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
-
-  await smpChat.updateByIdAndState(userId, "off", registerTime, userType);
+    const smpChat = await SmpChat.findByClientId(clientId);
+    await smpChat.updateByIdAndState(userId, serverState, regTime, userType);
+  }
 
   return;
 };
@@ -167,10 +159,8 @@ export const saveMessage = async (
   const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
   const seq = filterSmpChatData(smpChat).recentSeq(userId);
   const manager = userType === "manager" ? true : false;
-  let smpChatLogInfo = {};
   const logArr = [];
-
-  smpChatLogInfo = {
+  const smpChatLogInfo = {
     seq,
     userId,
     manager,
@@ -205,7 +195,6 @@ export const getPreview = async (clientId) => {
   if (!smpChat) return { result: false };
 
   const userList = filterSmpChatData(smpChat).requestChatUsers();
-
   const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
 
   if (chatLogs.length === 0) return;
@@ -213,222 +202,15 @@ export const getPreview = async (clientId) => {
   return chatLogs;
 };
 
-export const chatSocketIdSetting = async (clientId, socketId) => {
-  const managerInfo = await ManagerChat.findByClientId(clientId);
-  if (managerInfo === null) {
-    return false;
-  } else {
-    await managerInfo.updateBySocketId(socketId);
-    return true;
-  }
-};
+export const loadDialog = async (clientId, userId) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
 
-export const chatNickNameSetting = async (clientId, nickName) => {
-  const managerInfo = await ManagerChat.findByClientId(clientId);
-  if (managerInfo === null) {
-    return false;
-  } else {
-    await managerInfo.updateByNickName(nickName);
-    return true;
-  }
-};
+  if (!smpChat) return { result: false };
+  
+  const dialogNum = 15;
+  const dialog = filterSmpChatData(smpChat).chatLog(userId, dialogNum);
 
-export const createRoom = async (name, nickName) => {
-  const client = await ClientChat.findByUsername(name);
-  if (client === null) {
-    const ROOM_STATUS = "waiting";
-    const member = [name];
-    const clientChat = new ClientChat({
-      room: {
-        roomName: name,
-        userName: name,
-        nickName: nickName,
-        status: ROOM_STATUS,
-        currentMember: member,
-      },
-    });
-    await clientChat.save();
-  }
-};
+  if (dialog.length === 0) return;
 
-export const loadPreviewContent = async () => {
-  // 멤버가 존재할때만 가져온다.
-  const chat = await ClientChat.findByStatusChatting();
-  let chatLastLogs = [];
-  // 채팅이 존재 하면
-  if (chat.length !== 0) {
-    chat.map((chatData) => {
-      const chatLog = chatData.room.chatLog;
-      // 채팅 내역이 존재하는 유저만
-      if (chatLog.length !== 0) {
-        const data = {
-          chatLog: chatLog[chatData.room.chatLog.length - 1],
-          roomName: chatData.room.roomName,
-          username: chatData.room.username,
-          status: chatData.room.status,
-          member: chatData.room.Member,
-        };
-        chatLastLogs.push(data);
-      }
-    });
-  }
-  return chatLastLogs;
-};
-export const loadManagerChatContents = async (id) => {
-  const manager = await ManagerChat.findByUsername(id);
-  const chat = await ClientChat.findByUsername(manager.managerMember);
-  if (!chat) return;
-  const chatLog = chat.room.chatLog;
-  const log = chatLog.map((log) => {
-    log.chatMember.map((userId) => {
-      if (userId === id) {
-        return log;
-      }
-    });
-  });
-  console.log("253줄", log);
-  const chatLastLog = chatLog[chat.room.chatLog.length - 1];
-
-  /// 여기 할 차례 ~_~
-};
-export const loadClientChatContents = async (id) => {
-  const chat = await ClientChat.findByUsername(id);
-  if (!chat) return;
-  const chatLog = chat.room.chatLog;
-  return chatLog;
-};
-export const loadChatContent = async (name) => {
-  if (!name || name === null) {
-    const data = {
-      result: false,
-      message: "채팅 연결과정 중 오류가 발생했습니다.",
-    };
-    return data;
-  }
-  const chat = await ClientChat.findByUsername(name);
-  if (chat === null) {
-    const data = {
-      result: false,
-      message: "채팅 연결과정 중 오류가 발생했습니다.",
-    };
-    return data;
-  }
-  const managerId = chat.room.Member[1];
-  let managerNickName = null;
-  if (managerId) {
-    const manager = await ManagerChat.findByUsername(managerId);
-    managerNickName = manager.nickName;
-  }
-  const chatLog = chat.room.chatLog;
-  const chatLastLog = chatLog[chat.room.chatLog.length - 1];
-  const chatData = { chatLog, managerNickName, chatLastLog };
-  return chatData;
-};
-
-export const loadRoomName = async (user, socketId) => {
-  if (user) {
-    const client = await ClientChat.findByUsername(user);
-    if (client === null) {
-      const data = { result: false };
-      return data;
-    }
-    const member = client.room.Member;
-
-    const managerData = await ManagerChat.findBySocketId(socketId);
-    if (managerData === null) {
-      const data = { result: false };
-      return data;
-    }
-    const managerId = managerData.managerId;
-    // client의 room 상태
-    const searchResult = searchMember(member, managerData.managerId);
-
-    // 클라이언트 혼자일 경우
-    if (!searchResult.result) {
-      const member = await ClientChat.findByMember();
-      const prevClientName = searchPrevClientName(member, managerId);
-      // 매니저가 다른 방에서 채팅중이라면
-      if (prevClientName !== null) {
-        const prevClient = await ClientChat.findByUsername(prevClientName); // 이전 룸 유저 검색
-        await prevClient.updateByChatMember(managerId, false); // 이전 클라이언트 db에서 매니저 퇴장
-        const data = {
-          result: "leave",
-          roomName: prevClient.room.roomName, // socket.leave할 이전 룸 네임
-        };
-        return data;
-
-        // 다른 방에서 채팅중이 아니었다면
-      } else {
-        const roomInfo = searchChatRoomInfo(managerData, user);
-        await client.updateByChatMember(managerId, true);
-        // 최초 상담받는 client
-        if (!roomInfo) {
-          await managerData.updateByJoiningChatRoom(user, client.room.roomName);
-        }
-        const data = {
-          result: "join",
-          roomName: client.room.roomName,
-        };
-        return data;
-      }
-    }
-    // 클라이언트와 다른 매니저가 채팅 중
-    if (searchResult.result && !searchResult.manager) {
-      const data = {
-        result: "another",
-      };
-      return data;
-    }
-    // 내가 이미 접속 중인 채팅 방
-    if (searchResult.result && searchResult.manager) {
-      const data = {
-        result: "already",
-        roomName: client.room.roomName,
-      };
-      return data;
-    }
-  } else {
-    const data = { result: false };
-    return data;
-  }
-};
-
-export const reconnectRoom = async (socketId) => {
-  const manager = await ManagerChat.findBySocketId(socketId);
-  let name = false;
-  if (manager !== null && manager.chatState === "on") {
-    const client = await ClientChat.findByStatusChatting();
-    for (let i = 0; i < client.length; i++) {
-      const member = client[i].room.Member;
-      const managerId = manager.managerId;
-      const search = searchMember(member, managerId);
-      if (search.result && search.manager) {
-        name = search.name;
-        break;
-      } else {
-        continue;
-      }
-    }
-  }
-  return name;
-};
-
-export const leaveRoom = async (user, socketId) => {
-  const client = await ClientChat.findByUsername(user);
-  if (client === null) {
-    const data = { result: false };
-    return data;
-  }
-  const managerData = await ManagerChat.findBySocketId(socketId);
-  if (managerData === null) {
-    const data = { result: false };
-    return data;
-  }
-  const managerId = managerData.managerId;
-  await client.updateByChatMember(managerId, false);
-  const status = "waiting";
-  await client.updateByStatus(status);
-  const roomName = client.room.roomName;
-  const data = { result: true, roomName };
-  return data;
+  return dialog;
 };
