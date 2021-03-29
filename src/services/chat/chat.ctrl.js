@@ -156,45 +156,63 @@ export const saveMessage = async (
 
   if (!smpChat) return { result: false };
 
+  const roomOwner =
+    userType === "manager"
+      ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
+      : userId;
+
+  if (!roomOwner) return;
+
+  const seq = filterSmpChatData(smpChat).recentSeq(roomOwner);
   const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
-  const seq = filterSmpChatData(smpChat).recentSeq(userId);
-  const manager = userType === "manager" ? true : false;
+
   const logArr = [];
   const smpChatLogInfo = {
-    seq,
+    seq: seq + 1,
     userId,
-    manager,
+    userType,
     message,
     image,
     registerTime,
+    roomOwner,
   };
 
+  await SmpChat.updateByMessage(smpChat._id, roomOwner, smpChatLogInfo);
+
   logArr.push(smpChatLogInfo);
-
-  await SmpChat.updateByMessage(smpChat._id, smpChatLogInfo);
-
   return logArr;
 };
 
-export const joinRoomMember = async (clientId, userId, userType) => {
+export const joinRoomMember = async (
+  clientId,
+  userId,
+  userType,
+  clientName = null
+) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  if (userType === "client") {
+  if (userType === "client" && clientName === null) {
     await SmpChat.updateByRoomMember(smpChat._id, userId);
   }
 
-  if (userType === "manager") {
+  if (userType === "manager" && clientName) {
+    await SmpChat.updateByStayRoomOwnerId(smpChat._id, clientName, userId);
+
+    await SmpChat.updateByRoomMember(smpChat._id, clientName, userId);
   }
 };
 
-export const getPreview = async (clientId) => {
+export const getPreview = async (clientId, userId) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  const userList = filterSmpChatData(smpChat).requestChatUsers();
+  const userList = filterSmpChatData(smpChat).requestChatUsers(userId);
+
+  if (userList.length === 0) return;
+
   const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
 
   if (chatLogs.length === 0) return;
@@ -206,7 +224,7 @@ export const loadDialog = async (clientId, userId) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
-  
+
   const dialogNum = 15;
   const dialog = filterSmpChatData(smpChat).chatLog(userId, dialogNum);
 

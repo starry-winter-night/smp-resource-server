@@ -156,14 +156,26 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       return state;
     },
+    recentStayRoomOwerId: (userId) => {
+      for (let i = 0; i < smpChatDoc.manager.length; i++) {
+        const managerDoc = smpChatDoc.manager[i];
+
+        if (managerDoc.managerId === userId) {
+          userId = managerDoc.stayRoomOwnerId;
+
+          break;
+        }
+      }
+      return userId;
+    },
     recentSeq: (userId) => {
       let recentSeq = null;
 
       for (let i = 0; i < smpChatDoc.client.length; i++) {
-        if (smpChatDoc.client[i].userId === userId) {
-          const doc = smpChatDoc.client[i];
+        const clientDoc = smpChatDoc.client[i];
 
-          recentSeq = doc.chatLog.length + 1;
+        if (clientDoc.userId === userId) {
+          recentSeq = clientDoc.chatLog.length;
 
           break;
         }
@@ -171,23 +183,15 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       return recentSeq;
     },
-    requestChatUsers: () => {
-      const member = smpChatDoc.client
-        .map((list) => list.roomMember)
-        .filter((member) => member.length === 1)
-        .map((id) => id[0]);
-
-      return member;
-    },
     recentChatLogs: (userList) => {
       const recentChatLogs = [];
 
       for (let i = 0; i < userList.length; i++) {
         for (let j = 0; j < smpChatDoc.client.length; j++) {
-          const userId = smpChatDoc.client[i].userId;
+          const userId = smpChatDoc.client[j].userId;
 
           if (userList[i] === userId) {
-            const chatLog = smpChatDoc.client[i].chatLog;
+            const chatLog = smpChatDoc.client[j].chatLog;
 
             recentChatLogs.push(chatLog[chatLog.length - 1]);
 
@@ -204,7 +208,9 @@ export const filterSmpChatData = (smpChatDoc) => {
       for (let i = 0; i < clientLength; i++) {
         if (smpChatDoc.client[i].userId === userId) {
           const chatLogLength = smpChatDoc.client[i].chatLog.length;
-          const getLogNum = chatLogLength - dialogNum;
+          let getLogNum = chatLogLength - dialogNum;
+
+          if (getLogNum < 0) getLogNum = 0;
 
           for (let j = getLogNum; j < chatLogLength; j++) {
             const chatLog = smpChatDoc.client[i].chatLog[j];
@@ -216,6 +222,21 @@ export const filterSmpChatData = (smpChatDoc) => {
         }
       }
       return dialog;
+    },
+    requestChatUsers: (userId) => {
+      const member = smpChatDoc.client
+        .map((list) => list.roomMember)
+        .filter((member) => {
+          if (member.length === 1) return member;
+          if (member.length > 1) {
+            const index = member.indexOf(userId);
+
+            return member[index];
+          }
+        })
+        .map((id) => id[0]);
+
+      return member;
     },
   };
 };

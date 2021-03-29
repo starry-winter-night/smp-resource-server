@@ -106,7 +106,7 @@
         socket.on("preview", (info) => {
           info.forEach((logs) => {
             contentsHTML().preview(logs);
-            joinRoom(socket, logs.userId);
+            joinRoom(socket, logs.roomOwner);
           });
         });
       },
@@ -759,13 +759,13 @@
         msgTime(time);
       },
       dialog: (logs) => {
-        const { seq, userId, manager, message, image, registerTime } = logs;
+        const { seq, userId, userType, message, image, registerTime } = logs;
 
         /*  node  */
         const onMessage = document.createTextNode(message);
         const idText = document.createTextNode(userId);
 
-        if (manager === "true") {
+        if (userType === "manager") {
           /*  appned  */
           id.appendChild(idText);
           profile.appendChild(profileImage);
@@ -783,7 +783,7 @@
           contentsContainer.className = "smpChat__dialog__contentContainerLeft";
         }
 
-        if (manager === "false") {
+        if (userType === "client") {
           /*  appned  */
           container.appendChild(time);
           container.appendChild(contentsContainer);
@@ -873,15 +873,16 @@
         scrollBottom(dialog);
       },
       preview: (logs) => {
-        const { userId, message, registerTime, image } = logs;
+
+        const { message, registerTime, image, roomOwner } = logs;
 
         const prevId = document.querySelector(
-          `.smpChat__connect__id_${userId}`
+          `.smpChat__connect__id_${roomOwner}`
         );
 
-        if (prevId === null || prevId.textContent !== userId) {
+        if (prevId === null || prevId.textContent !== roomOwner) {
           /*  node  */
-          const idText = document.createTextNode(userId);
+          const idText = document.createTextNode(roomOwner);
           const messageText = document.createTextNode(message);
 
           /*  appned  */
@@ -895,10 +896,10 @@
           connect.appendChild(container);
 
           /*  className & id   */
-          container.className = `smpChat__connect__container smpChat__connect__container_${userId}`;
-          id.className = `smpChat__connect__id smpChat__connect__id_${userId}`;
-          time.className = `smpChat__connect__time smpChat__connect__time_${userId}`;
-          content.className = `smpChat__connect__content smpChat__connect__content_${userId}`;
+          container.className = `smpChat__connect__container smpChat__connect__container_${roomOwner}`;
+          id.className = `smpChat__connect__id smpChat__connect__id_${roomOwner}`;
+          time.className = `smpChat__connect__time smpChat__connect__time_${roomOwner}`;
+          content.className = `smpChat__connect__content smpChat__connect__content_${roomOwner}`;
           contentsContainer.className = "smpChat__connect__contentsContainer";
 
           /*  set  */
@@ -911,14 +912,14 @@
         }
 
         const prevContent = document.querySelector(
-          `.smpChat__connect__content_${userId}`
+          `.smpChat__connect__content_${roomOwner}`
         );
         const prevTime = document.querySelector(
-          `.smpChat__connect__time_${userId}`
+          `.smpChat__connect__time_${roomOwner}`
         );
 
         prevTime.setAttribute("datetime", registerTime);
-        prevId.textContent = userId;
+        prevId.textContent = roomOwner;
         prevContent.textContent = message;
 
         /*  function  */

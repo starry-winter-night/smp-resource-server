@@ -103,7 +103,7 @@ smpChatIo.on("connection", async (socket) => {
 
   socket.join(socket.userType);
 
-  socketSend(socket).preview();
+  if (socket.userType === "manager") socketSend(socket).reflesh();
 
   socketReceive(socket).disconnect();
 
@@ -124,14 +124,17 @@ const socketSend = function sendSocketContact(socket) {
     switch: (state) => {
       socket.emit("switch", state);
     },
-    preview: async (log = null) => {
-      if (log) socket.to("manager").emit("preview", log);
-
-      if (socket.userType === "manager") {
-        log = await getPreview(socket.clientId);
-
-        if (log) socket.emit("preview", log);
+    preview: async (log) => {
+      if (socket.userType === "client") {
+        socket.to("manager").emit("preview", log);
       }
+
+      if (socket.userType === "manager") socket.emit("preview", log);
+    },
+    reflesh: async (log) => {
+      log = await getPreview(socket.clientId, socket.userId);
+
+      if (log) socket.emit("preview", log);
     },
     dialog: (log = null) => {
       if (log) socket.emit("dialog", log);
@@ -165,6 +168,8 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     message: () => {
       socket.on("message", async (msg = null, img = null) => {
+        await joinRoomMember(socket.clientId, socket.userId, socket.userType);
+
         const msgLog = await saveMessage(
           socket.clientId,
           socket.userId,
@@ -172,15 +177,19 @@ const socketReceive = function receiveSocketContact(socket) {
           img,
           socket.userType
         );
-        await joinRoomMember(socket.clientId, socket.userId, socket.userType);
 
         socketSend(socket).preview(msgLog);
       });
     },
     dialog: () => {
       socket.on("dialog", async (userId) => {
+        await joinRoomMember(
+          socket.clientId,
+          socket.userId,
+          socket.userType,
+          userId
+        );
         const dialog = await loadDialog(socket.clientId, userId);
-
         socketSend(socket).dialog(dialog);
       });
     },

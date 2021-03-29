@@ -11,14 +11,7 @@ const smpChatSchema = new Schema({
       serverState: String,
       managerId: String,
       registerTime: String,
-      chatRoomHistory: [
-        {
-          seq: Number,
-          userId: String,
-          roomName: String,
-          registerTime: String,
-        },
-      ],
+      stayRoomOwnerId: String,
     },
   ],
   client: [
@@ -31,10 +24,11 @@ const smpChatSchema = new Schema({
         {
           seq: Number,
           userId: String,
-          manager: String,
+          userType: String,
           message: String,
           image: String,
           registerTime: String,
+          roomOwner: String,
         },
       ],
     },
@@ -93,16 +87,32 @@ smpChatSchema.statics.updateByServerState = function (
   );
 };
 
-smpChatSchema.statics.updateByRoomMember = function (_id, userId) {
+smpChatSchema.statics.updateByStayRoomOwnerId = function (
+  _id,
+  clientId,
+  managerId
+) {
   return this.updateOne(
-    { _id, "client.userId": userId },
+    { _id, "manager.managerId": managerId },
+    { "manager.$.stayRoomOwnerId": clientId }
+  );
+};
+
+smpChatSchema.statics.updateByRoomMember = function (
+  _id,
+  clientId,
+  managerId = null
+) {
+  const userId = managerId === null ? clientId : managerId;
+  return this.updateOne(
+    { _id, "client.userId": clientId },
     { $addToSet: { "client.$.roomMember": userId } }
   );
 };
 
-smpChatSchema.statics.updateByMessage = function (_id, chatLog) {
+smpChatSchema.statics.updateByMessage = function (_id, clientName, chatLog) {
   return this.updateOne(
-    { _id, "client.userId": chatLog.userId },
+    { _id, "client.userId": clientName },
     { $addToSet: { "client.$.chatLog": chatLog } }
   );
 };
