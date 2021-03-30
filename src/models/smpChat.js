@@ -19,12 +19,7 @@ const smpChatSchema = new Schema({
       serverState: String,
       userId: String,
       registerTime: String,
-      roomMember: [
-        // {
-        //   userId: String,
-        //   socketId: String,
-        // },
-      ],
+      roomMember: [],
       chatLog: [
         {
           seq: Number,
@@ -33,7 +28,7 @@ const smpChatSchema = new Schema({
           message: String,
           image: String,
           registerTime: String,
-          roomOwner: String,
+          roomName: String,
         },
       ],
     },

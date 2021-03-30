@@ -105,18 +105,18 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
       return dialog;
     },
-    availChatClient: (managerId) => {
+    availChatClient: (userId) => {
       const member = smpChatDoc.client
         .map((list) => list.roomMember)
         .filter((currMember) => {
           if (currMember.length === 1) return currMember;
 
           if (currMember.length > 1) {
-            const index = currMember.indexOf(managerId);
+            const index = currMember.indexOf(userId);
 
             if (index === -1) return;
-
-            if (currMember !== currMember[index]) return currMember;
+            
+            return currMember;
           }
         })
         .map((roomMember) => roomMember[0]);

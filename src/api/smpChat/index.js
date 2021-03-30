@@ -135,15 +135,17 @@ const socketSend = function sendSocketContact(socket) {
       socket.emit("start", { dialog, previewLog });
     },
     message: (log) => {
-      smpChatIo.to(log[0].roomOwner).emit("message", log[0]);
+      if (log.length !== 0) {
+        smpChatIo.to(log[0].roomName).emit("message", log[0]);
+      }
     },
     switch: (state) => {
       socket.emit("switch", state);
     },
     preview: (log) => {
       socket.userType === "manager"
-        ? socket.emit("preview", log)
-        : socket.to("manager").emit("preview", log);
+        ? socket.emit("preview", log[0])
+        : socket.to("manager").emit("preview", log[0]);
     },
     dialog: (log) => {
       socket.emit("dialog", log);
@@ -184,10 +186,12 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     dialog: () => {
       socket.on("dialog", async (userId) => {
-        await joinRoomMember(socket, userId);
+        const prevUserId = await joinRoomMember(socket, userId);
 
         const dialog = await loadDialog(socket);
 
+        socket.leave(prevUserId);
+        
         socket.join(userId);
 
         socketSend(socket).dialog(dialog);

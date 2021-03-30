@@ -99,14 +99,14 @@ export const saveMessage = async (
 
   if (!smpChat) return { result: false };
 
-  const roomOwner =
+  const roomName =
     userType === "manager"
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
 
-  if (!roomOwner) return;
+  if (!roomName) return;
 
-  const seq = filterSmpChatData(smpChat).recentSeq(roomOwner);
+  const seq = filterSmpChatData(smpChat).recentSeq(roomName);
   const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
   const logArr = [];
   const smpChatLogInfo = {
@@ -116,10 +116,10 @@ export const saveMessage = async (
     message,
     image,
     registerTime,
-    roomOwner,
+    roomName,
   };
 
-  await SmpChat.updateByMessage(smpChat._id, roomOwner, smpChatLogInfo);
+  await SmpChat.updateByMessage(smpChat._id, roomName, smpChatLogInfo);
 
   logArr.push(smpChatLogInfo);
 
@@ -143,9 +143,14 @@ export const joinRoomMember = async (
   }
 
   if (userType === "manager" && clientName) {
+    // 순서 중요
+    const prevUser = filterSmpChatData(smpChat).recentStayRoomOwerId(userId);
+
     await SmpChat.updateByStayRoomOwnerId(smpChat._id, clientName, userId);
 
     await SmpChat.updateByRoomMember(smpChat._id, clientName, userId);
+
+    return prevUser;
   }
 };
 
@@ -191,5 +196,3 @@ export const getClientName = async ({ clientId, userId }) => {
 
   return clientName;
 };
-
-
