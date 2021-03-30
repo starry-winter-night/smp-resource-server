@@ -15,6 +15,7 @@ import {
   getPreview,
   saveMessage,
   loadDialog,
+  getClientName,
 } from "../../services/chat/chat.ctrl";
 
 const io = Server(httpServer, {
@@ -101,9 +102,7 @@ smpChatIo.use(async (socket, next) => {
 smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
-  socket.join(socket.userType);
-
-  if (socket.userType === "manager") socketSend(socket).reflesh();
+  socketSend(socket).start();
 
   socketReceive(socket).disconnect();
 
@@ -118,26 +117,36 @@ smpChatIo.on("connection", async (socket) => {
 
 const socketSend = function sendSocketContact(socket) {
   return {
-    message: (msg) => {
-      socket.emit("message", { message: "smp 채팅서버에 접속하였습니다." });
+    start: async () => {
+      socket.join(socket.userType);
+
+      let previewLog = null;
+      let clientName = socket.userId;
+
+      if (socket.userType === "manager") {
+        previewLog = await getPreview(socket);
+        clientName = await getClientName(socket);
+      }
+
+      socket.join(clientName);
+
+      const dialog = await loadDialog(socket);
+
+      socket.emit("start", { dialog, previewLog });
+    },
+    message: (log) => {
+      smpChatIo.to(log[0].roomOwner).emit("message", log[0]);
     },
     switch: (state) => {
       socket.emit("switch", state);
     },
-    preview: async (log) => {
-      if (socket.userType === "client") {
-        socket.to("manager").emit("preview", log);
-      }
-
-      if (socket.userType === "manager") socket.emit("preview", log);
+    preview: (log) => {
+      socket.userType === "manager"
+        ? socket.emit("preview", log)
+        : socket.to("manager").emit("preview", log);
     },
-    reflesh: async (log) => {
-      log = await getPreview(socket.clientId, socket.userId);
-
-      if (log) socket.emit("preview", log);
-    },
-    dialog: (log = null) => {
-      if (log) socket.emit("dialog", log);
+    dialog: (log) => {
+      socket.emit("dialog", log);
     },
   };
 };
@@ -154,12 +163,7 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     switch: () => {
       socket.on("switch", async (state) => {
-        const setState = await setServerState(
-          socket.clientId,
-          socket.userId,
-          state,
-          socket.userType
-        );
+        const setState = await setServerState(socket, state);
 
         if (!setState.result) console.log("err");
 
@@ -168,28 +172,24 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     message: () => {
       socket.on("message", async (msg = null, img = null) => {
-        await joinRoomMember(socket.clientId, socket.userId, socket.userType);
+        if (socket.userType === "client") {
+          await joinRoomMember(socket);
+        }
 
-        const msgLog = await saveMessage(
-          socket.clientId,
-          socket.userId,
-          msg,
-          img,
-          socket.userType
-        );
+        const msgLog = await saveMessage(socket, msg, img);
 
         socketSend(socket).preview(msgLog);
+        socketSend(socket).message(msgLog);
       });
     },
     dialog: () => {
       socket.on("dialog", async (userId) => {
-        await joinRoomMember(
-          socket.clientId,
-          socket.userId,
-          socket.userType,
-          userId
-        );
-        const dialog = await loadDialog(socket.clientId, userId);
+        await joinRoomMember(socket, userId);
+
+        const dialog = await loadDialog(socket);
+
+        socket.join(userId);
+
         socketSend(socket).dialog(dialog);
       });
     },

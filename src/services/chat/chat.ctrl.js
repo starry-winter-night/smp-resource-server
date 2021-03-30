@@ -1,67 +1,12 @@
 import moment from "moment-timezone";
-import {
-  createMsgTime,
-  searchMember,
-  searchChatRoomInfo,
-  searchPrevClientName,
-  checkFunctionSpeed,
-  changeUTC,
-  findSameId,
-  filterSmpChatData,
-} from "./chat.functions";
-import ManagerChat from "../../models/chatManager";
-import ClientChat from "../../models/chatClient";
+import { findSameId, filterSmpChatData } from "./chat.functions";
 import SmpChat from "../../models/smpChat";
 import Member from "../../models/member";
 import Oauth from "../../models/oauth";
 
-export const registerOption = async (clientId, option) => {
-  let { message, code, state, result } = "";
-  const defaultName = "Host";
-  const manager = await ManagerChat.findByClientId(clientId);
-  if (manager === null) {
-    result = false;
-    message = "clientId와 연결된 apiKey가 일치하지 않습니다.";
-    code = 500;
-  } else {
-    if (option) {
-      const nickName = option.nickName;
-      if (!nickName) {
-        await manager.updateByNickName(nickName);
-      } else {
-        await manager.updateByNickName(defaultName);
-      }
-      const userDate = changeUTC(option);
-      const nowDate = new Date().valueOf();
-      if (!userDate) {
-        result = false;
-        message = "시간 옵션 형식이 잘못되었습니다.";
-        state = "off";
-      } else {
-        await manager.updateBychatTime(option);
-        if (nowDate > userDate.startDate && nowDate < userDate.endDate) {
-          result = true;
-          message = "채팅 서버와 연결되었습니다.";
-          state = "on";
-        } else {
-          result = true;
-          message = "상담 시간이 아닙니다.";
-          state = "off";
-        }
-      }
-    } else {
-      await manager.updateByNickName(defaultName);
-      result = true;
-      message = "채팅 서버와 연결되었습니다.";
-      state = "on";
-    }
-    const data = { result, message, state, code };
-    return data;
-  }
-};
-
 export const verifyClientId = async (clientId) => {
   const member = await Member.findByClientId(clientId);
+
   if (member === null) {
     return {
       result: false,
@@ -135,7 +80,7 @@ export const getServerState = async (clientId, userId, userType) => {
   return filterSmpChatData(smpChat).state(userId, userType);
 };
 
-export const setServerState = async (clientId, userId, state, userType) => {
+export const setServerState = async ({ clientId, userId, userType }, state) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
@@ -146,11 +91,9 @@ export const setServerState = async (clientId, userId, state, userType) => {
 };
 
 export const saveMessage = async (
-  clientId,
-  userId,
+  { clientId, userId, userType },
   message,
-  image,
-  userType
+  image
 ) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
@@ -165,7 +108,6 @@ export const saveMessage = async (
 
   const seq = filterSmpChatData(smpChat).recentSeq(roomOwner);
   const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
-
   const logArr = [];
   const smpChatLogInfo = {
     seq: seq + 1,
@@ -180,13 +122,12 @@ export const saveMessage = async (
   await SmpChat.updateByMessage(smpChat._id, roomOwner, smpChatLogInfo);
 
   logArr.push(smpChatLogInfo);
+
   return logArr;
 };
 
 export const joinRoomMember = async (
-  clientId,
-  userId,
-  userType,
+  { clientId, userId, userType },
   clientName = null
 ) => {
   const smpChat = await SmpChat.findByClientId(clientId);
@@ -194,6 +135,10 @@ export const joinRoomMember = async (
   if (!smpChat) return { result: false };
 
   if (userType === "client" && clientName === null) {
+    const userList = filterSmpChatData(smpChat).availChatClient(userId);
+
+    if (userList.length === 1 && userList[0] === userId) return;
+
     await SmpChat.updateByRoomMember(smpChat._id, userId);
   }
 
@@ -204,12 +149,12 @@ export const joinRoomMember = async (
   }
 };
 
-export const getPreview = async (clientId, userId) => {
+export const getPreview = async ({ clientId, userId }) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  const userList = filterSmpChatData(smpChat).requestChatUsers(userId);
+  const userList = filterSmpChatData(smpChat).availChatClient(userId);
 
   if (userList.length === 0) return;
 
@@ -220,15 +165,31 @@ export const getPreview = async (clientId, userId) => {
   return chatLogs;
 };
 
-export const loadDialog = async (clientId, userId) => {
+export const loadDialog = async ({ clientId, userId, userType }) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
+  const clientName =
+    userType === "manager"
+      ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
+      : userId;
   const dialogNum = 15;
-  const dialog = filterSmpChatData(smpChat).chatLog(userId, dialogNum);
+  const dialog = filterSmpChatData(smpChat).chatLog(clientName, dialogNum);
 
   if (dialog.length === 0) return;
 
   return dialog;
 };
+
+export const getClientName = async ({ clientId, userId }) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+
+  if (!smpChat) return { result: false };
+
+  const clientName = filterSmpChatData(smpChat).recentStayRoomOwerId(userId);
+
+  return clientName;
+};
+
+

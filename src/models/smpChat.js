@@ -19,7 +19,12 @@ const smpChatSchema = new Schema({
       serverState: String,
       userId: String,
       registerTime: String,
-      roomMember: [],
+      roomMember: [
+        // {
+        //   userId: String,
+        //   socketId: String,
+        // },
+      ],
       chatLog: [
         {
           seq: Number,
