@@ -31,6 +31,13 @@
               ? managerArea(this.args, data.state)
               : clientArea(this.args, data.state);
 
+            /* 서버에서 인증여부 가져와서 false면 
+               입력창 하나 만들고 
+               거기에 직접 api키를 넣게 만들어서
+               서버에 던지고 맞으면 인증ok 
+               레퍼러 검사해서 같은 레퍼러면 계속 통과
+               다른 레퍼러에서 넘어오면 다시 인증
+            */
             const socket = await socketURL(this.args);
 
             changeSwitch(data.state);
@@ -40,6 +47,8 @@
             clickConn(socket);
 
             messageSend(socket);
+
+            socketReceive(socket).error();
 
             socketReceive(socket).connect();
 
@@ -153,6 +162,14 @@
       disconnect: () => {
         socket.on("disconnect", (data) => {});
       },
+      error: () => {
+        socket.on("connect_error", (err) => {
+          console.log(err.message);
+          if (err.data.message === "duplicate_connection") {
+            changeSwitch(err.data.state);
+          }
+        });
+      },
     };
   };
 
@@ -204,12 +221,17 @@
   };
 
   const socketURL = function connectSocketURL({ clientId, apiKey, userId }) {
-    return io(
-      `ws://localhost:7000/${apiKey}?clientId=${clientId}&userId=${userId}`,
-      {
-        autoConnect: false,
-      }
-    );
+    return io(`ws://localhost:7000/${clientId}`, {
+      reconnectionDelayMax: 10000,
+      autoConnect: false,
+      auth: {
+        apiKey,
+      },
+      query: {
+        userId,
+        clientId,
+      },
+    });
   };
 
   const managerArea = function ctrlManagerChat({ domId }) {
@@ -734,13 +756,13 @@
         /*  textNode  */
         const idText = document.createTextNode("smpchat");
         const noticeIdSpan = document.createTextNode("[공지사항]");
-        const noticeContentText = `안녕하세요! Third_party API SMPCHAT 제작자 sm_Park입니다 :)
-        </br>다음은 SMPCHAT 이용방법 입니다.
+        const noticeContentText = `안녕하세요! 이용방법을 읽어주세요.
         </br>우측상단 버튼을 클릭시 서버와 연결됩니다. 
-        </br>내용을 입력 후 엔터 또는 우측하단 아이콘 클릭 시 메시지를 보냅니다. 
-        </br>좌측하단 플러스 클릭 시 이미지를 보낼 수 있습니다.(1MB 이하) 
         </br>메시지 입력 시 컨트롤 + 엔터키를 통해 줄 바꿈 할 수 있습니다. 
+        </br>메시지 입력 후 엔터 또는 우측하단 아이콘 클릭 시 전송됩니다. 
+        </br>좌측하단 플러스 아이콘으로 이미지를 보낼 수 있습니다.(1MB 이하) 
         </br>서버 연결 전 "깃허브" 또는 "이메일"을 입력하시면 해당 링크를 얻을 수 있습니다.
+        </br>서버 연결 전 메시지는 저장되지 않으며 새로고침 또는 서버 연결 시 삭제됩니다.
         </br><b>[채팅운영시간]</b></br>평일 10:00 ~ 18:00 
         </br>감사합니다 :D`;
 
@@ -1220,11 +1242,13 @@
       document.querySelector(".smpChat__connect__switchInput") ||
       document.querySelector(".smpChat__dialog__switchInput");
     if (state === "on") {
-      return (checkbox.checked = true);
+      checkbox.checked = true;
+      return;
     }
 
     if (state === "off") {
-      return (checkbox.checked = false);
+      checkbox.checked = false;
+      return;
     }
   };
 

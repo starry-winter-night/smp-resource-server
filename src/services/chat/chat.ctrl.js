@@ -31,7 +31,7 @@ export const verifyClientId = async (clientId) => {
   return { result: true };
 };
 
-export const judgeUser = async (clientId, userId) => {
+export const judgeUserType = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
 
   if (oauth === null) return "oauth null";
@@ -92,8 +92,8 @@ export const setServerState = async ({ clientId, userId, userType }, state) => {
 
 export const saveMessage = async (
   { clientId, userId, userType },
-  message,
-  image
+  message = null,
+  image = null
 ) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 

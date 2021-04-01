@@ -5,6 +5,8 @@ import auth from "./auth";
 import photo from "./photo";
 // 채팅 API
 import chat from "./smpChat";
+// 채팅 SOCKET.IO
+require("./smpChat/chatServer");
 
 const api = new Router();
 
