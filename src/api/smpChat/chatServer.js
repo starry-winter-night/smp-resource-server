@@ -10,6 +10,7 @@ import {
   saveMessage,
   loadDialog,
   getClientName,
+  checkDuplicateUser,
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -22,30 +23,21 @@ const io = new Server(httpServer, {
 // 네임스페이스 동적 적용
 const smpChatIo = io.of((name, query, next) => next(null, true));
 
+// 미들웨어
 smpChatIo.use(async (socket, next) => {
   const clientId = socket.handshake.query.clientId;
   const apiKey = socket.handshake.auth.apiKey;
   const verify = await verifyManagerInfo(clientId, apiKey);
 
-  if (!verify.result) {
-    const err = new Error("not_authorized");
-    err.data = { message: verify.message };
-    next(err);
-    return;
-  }
+  if (!verify.result) return next(smpChatError(verify));
 
   socket.clientId = clientId;
   socket.userId = socket.handshake.query.userId;
   socket.userType = await judgeUserType(socket.clientId, socket.userId);
 
-  const socketUsers = accessUser(socket);
+  const socketUsers = checkDuplicateUser(socket);
 
-  if (socketUsers.message) {
-    const err = new Error("duplicate_connection");
-    err.data = { message: "duplicate_connection", state: "off" };
-    next(err);
-    return;
-  }
+  if (!socketUsers.result) return next(smpChatError(socketUsers));
 
   socket.users = socketUsers;
 
@@ -66,6 +58,8 @@ smpChatIo.on("connection", async (socket) => {
   socketReceive(socket).message();
 
   socketReceive(socket).dialog();
+
+  socketReceive(socket).prevDialog();
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -103,6 +97,9 @@ const socketSend = function sendSocketContact(socket) {
     dialog: (log) => {
       socket.emit("dialog", log);
     },
+    prevDialog: (log) => {
+      socket.emit("prevDialog", log);
+    },
   };
 };
 
@@ -113,8 +110,7 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     disconnecting: () => {
       socket.on("disconnecting", async (reason) => {
-        console.log("disconnecting", socket.users);
-        accessUser(socket, socket.users);
+        checkDuplicateUser(socket, socket.users);
       });
     },
     switch: () => {
@@ -143,41 +139,32 @@ const socketReceive = function receiveSocketContact(socket) {
         const prevUserId = await joinRoomMember(socket, userId);
         const dialog = await loadDialog(socket);
 
+        if (dialog.length === 0) return;
+
         socket.leave(prevUserId);
         socket.join(userId);
 
         socketSend(socket).dialog(dialog);
       });
     },
+    prevDialog: () => {
+      socket.on("prevDialog", async (seq) => {
+        const prevDialog = await loadDialog(socket, seq);
+
+        if (prevDialog.length === 0) return;
+
+        socketSend(socket).prevDialog(prevDialog);
+      });
+    },
   };
 };
 
-const accessUser = (function checkDuplicateAccessUser() {
-  let accessUsers = [];
+const smpChatError = ({ message }) => {
+  const err = new Error(message);
 
-  return (socket, arr = []) => {
-    let message = "";
+  err.data = { message, state: "off" };
 
-    /* 새고로침으로 나가면 
-      해당 유저의 배열을 비워주자.
-    */
-    if (arr.length !== 0) {
-      accessUsers = accessUsers.filter((user) => user.userId !== socket.userId);
-      message = "";
-    } else {
-      accessUsers.map((user) => {
-        if (user.userId === socket.userId) {
-          message = "duplicate_connection";
-        }
-      });
-
-      if (message === "") {
-        accessUsers.push({ userId: socket.userId, socketId: socket.id });
-      }
-    }
-
-    return { accessUsers, message };
-  };
-})();
+  return err;
+};
 
 export default httpServer;

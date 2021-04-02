@@ -170,7 +170,10 @@ export const getPreview = async ({ clientId, userId }) => {
   return chatLogs;
 };
 
-export const loadDialog = async ({ clientId, userId, userType }) => {
+export const loadDialog = async (
+  { clientId, userId, userType },
+  seq = null
+) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
@@ -179,10 +182,14 @@ export const loadDialog = async ({ clientId, userId, userType }) => {
     userType === "manager"
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
-  const dialogNum = 15;
-  const dialog = filterSmpChatData(smpChat).chatLog(clientName, dialogNum);
 
-  if (dialog.length === 0) return;
+  const dialogNum = 15;
+  const lastDialogNum = seq;
+  const dialog = filterSmpChatData(smpChat).chatLog(
+    clientName,
+    dialogNum,
+    lastDialogNum
+  );
 
   return dialog;
 };
@@ -196,3 +203,30 @@ export const getClientName = async ({ clientId, userId }) => {
 
   return clientName;
 };
+
+export const checkDuplicateUser = (() => {
+  let accessUsers = [];
+
+  return ({ userId, id }, arr = []) => {
+    let message = "";
+    let result = true;
+
+    if (arr.length !== 0) {
+      accessUsers = accessUsers.filter((user) => user.userId !== userId);
+      message = "";
+    } else {
+      accessUsers.map((user) => {
+        if (user.userId === userId) {
+          message = "duplicate_connection";
+          result = false;
+        }
+      });
+
+      if (message === "") {
+        accessUsers.push({ userId: userId, socketId: id });
+      }
+    }
+
+    return { accessUsers, message, result };
+  };
+})();

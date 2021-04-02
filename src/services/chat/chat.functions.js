@@ -83,13 +83,16 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
       return recentChatLogs;
     },
-    chatLog: (userId, dialogNum) => {
+    chatLog: (userId, dialogNum, lastDialogNum) => {
       let dialog = [];
       let clientLength = smpChatDoc.client.length;
 
       for (let i = 0; i < clientLength; i++) {
         if (smpChatDoc.client[i].userId === userId) {
-          const chatLogLength = smpChatDoc.client[i].chatLog.length;
+          const chatLogLength =
+            lastDialogNum === null
+              ? smpChatDoc.client[i].chatLog.length
+              : lastDialogNum - 1;
           let getLogNum = chatLogLength - dialogNum;
 
           if (getLogNum < 0) getLogNum = 0;
@@ -115,7 +118,7 @@ export const filterSmpChatData = (smpChatDoc) => {
             const index = currMember.indexOf(userId);
 
             if (index === -1) return;
-            
+
             return currMember;
           }
         })
