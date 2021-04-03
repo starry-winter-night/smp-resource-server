@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 export const findSameId = (list, id) => {
   let data = false;
 
@@ -100,6 +103,9 @@ export const filterSmpChatData = (smpChatDoc) => {
           for (let j = getLogNum; j < chatLogLength; j++) {
             const chatLog = smpChatDoc.client[i].chatLog[j];
 
+            if (chatLog.image !== null && chatLog.message === null) {
+              chatLog.image = fs.readFileSync(chatLog.image).toString("base64");
+            }
             dialog.push(chatLog);
           }
 
@@ -128,6 +134,31 @@ export const filterSmpChatData = (smpChatDoc) => {
     },
   };
 };
+
+export const saveImageFolderAndFile = (username, roomName, image) => {
+  const dirPath = path.join(
+    __dirname,
+    `/../../data/smpChat/${username}/${roomName}`
+  );
+  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+
+  const buffer = Buffer.from(image.bytes);
+
+  const filename = `${dirPath}/${Date.now().toString()}_${image.name}`;
+
+  fs.writeFileSync(filename, buffer);
+
+  return { filename, buffer };
+};
+
+// export const raedImageFile = (dir) => {
+//   const name = fs.readdirSync(dir);
+//   const path = `${dir}${name[0]}`;
+//   const imgMime = mime.getType(path);
+//   const baseData = fs.readFileSync(path, "base64");
+//   const data = { imgMime: imgMime, baseData: baseData };
+//   return data;
+// }
 
 export const checkFunctionSpeed = (func, cnt, params) => {
   const startTime = new Date().getTime();

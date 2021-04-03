@@ -1,5 +1,9 @@
 import moment from "moment-timezone";
-import { findSameId, filterSmpChatData } from "./chat.functions";
+import {
+  findSameId,
+  filterSmpChatData,
+  saveImageFolderAndFile,
+} from "./chat.functions";
 import SmpChat from "../../models/smpChat";
 import Member from "../../models/member";
 import Oauth from "../../models/oauth";
@@ -108,18 +112,30 @@ export const saveMessage = async (
 
   const seq = filterSmpChatData(smpChat).recentSeq(roomName);
   const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
+  let filename = null;
+  let buffer = null;
+
+  if (image !== null) {
+    const member = await Member.findByClientId(clientId);
+    image = saveImageFolderAndFile(member.username, roomName, image);
+    filename = image.filename;
+    buffer = image.buffer;
+  }
+
   const logArr = [];
   const smpChatLogInfo = {
     seq: seq + 1,
     userId,
     userType,
     message,
-    image,
+    image: filename,
     registerTime,
     roomName,
   };
 
   await SmpChat.updateByMessage(smpChat._id, roomName, smpChatLogInfo);
+
+  if (image) smpChatLogInfo.image = buffer.toString("base64");
 
   logArr.push(smpChatLogInfo);
 
@@ -166,6 +182,11 @@ export const getPreview = async ({ clientId, userId }) => {
   const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
 
   if (chatLogs.length === 0) return;
+
+  if (chatLogs[0].image && chatLogs[0].message === null) {
+    chatLogs[0].image = null;
+    chatLogs[0].message = "사진을 보냈습니다.";
+  }
 
   return chatLogs;
 };

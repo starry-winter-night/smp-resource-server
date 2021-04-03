@@ -90,6 +90,10 @@ const socketSend = function sendSocketContact(socket) {
       socket.emit("switch", state);
     },
     preview: (log) => {
+      if (log[0].message === null && log[0].image) {
+        log[0].message = "사진을 보냈습니다.";
+      }
+
       socket.userType === "manager"
         ? socket.emit("preview", log[0])
         : socket.to("manager").emit("preview", log[0]);
