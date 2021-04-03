@@ -31,7 +31,6 @@
               ? managerArea(this.args, data.state)
               : clientArea(this.args, data.state);
 
-            document.documentElement.setAttribute("user-theme", "blue");
             /* 서버에서 인증여부 가져와서 false면 
                입력창 하나 만들고 
                거기에 직접 api키를 넣게 만들어서
@@ -40,6 +39,8 @@
                다른 레퍼러에서 넘어오면 다시 인증
             */
             const socket = await socketURL(this.args);
+
+            changeTheme();
 
             changeSwitch(data.state);
 
@@ -425,6 +426,7 @@
     const navbar = document.createElement("div");
     const contents = document.createElement("div");
     const logo = document.createElement("h3");
+    const theme = document.createElement("img");
     const closeImg = document.createElement("img");
     const connect = document.createElement("div");
     const dialog = document.createElement("div");
@@ -470,6 +472,7 @@
     section.appendChild(contents);
     logo.appendChild(logoText);
     navbar.appendChild(logo);
+    navbar.appendChild(theme);
     navbar.appendChild(closeImg);
 
     /* connect */
@@ -514,6 +517,7 @@
     dialog.className =
       "smpChat__section__dialog smpChat__section__managerDialog";
     logo.className = "smpChat__section__logo smpChat__userSelect__none";
+    theme.className = "smpChat__section__theme smpChat__userSelect__none";
     closeImg.className = "smpChat__section__close smpChat__userSelect__none";
     smpChatIconImg.className = "smpChatIcon smpChat__userSelect__none";
 
@@ -573,6 +577,10 @@
       "src",
       "http://localhost:5000/smpChat/image?name=close.png"
     );
+    theme.setAttribute(
+      "src",
+      "http://localhost:5000/smpChat/image?name=redFlower.png"
+    );
     closeImg.setAttribute("alt", "채팅창닫기 아이콘");
 
     /* connect */
@@ -587,7 +595,7 @@
     );
     dialogChatMsgSend.setAttribute(
       "src",
-      "http://localhost:5000/smpChat/image?name=sendBtn.png"
+      "http://localhost:5000/smpChat/image?name=blueSend.png"
     );
     dialogChatAddLabel.htmlFor = "smp_chat_addImg";
     dialogChatAddInput.type = "file";
@@ -607,6 +615,7 @@
     const navbar = document.createElement("div");
     const contents = document.createElement("div");
     const logo = document.createElement("h3");
+    const theme = document.createElement("img");
     const closeImg = document.createElement("img");
     const dialog = document.createElement("div");
     const smpChatIconImg = document.createElement("img");
@@ -647,6 +656,7 @@
     section.appendChild(contents);
     logo.appendChild(logoText);
     navbar.appendChild(logo);
+    navbar.appendChild(theme);
     navbar.appendChild(closeImg);
 
     /* dialog */
@@ -686,6 +696,7 @@
     dialog.className =
       "smpChat__section__dialog smpChat__section__clientDialog";
     logo.className = "smpChat__section__logo smpChat__userSelect__none";
+    theme.className = "smpChat__section__theme smpChat__userSelect__none";
     closeImg.className = "smpChat__section__close smpChat__userSelect__none";
     smpChatIconImg.className = "smpChatIcon smpChat__userSelect__none";
 
@@ -737,6 +748,10 @@
       "http://localhost:5000/smpChat/image?name=chat.png"
     );
     smpChatIconImg.setAttribute("alt", "채팅아이콘");
+    theme.setAttribute(
+      "src",
+      "http://localhost:5000/smpChat/image?name=redFlower.png"
+    );
     closeImg.setAttribute(
       "src",
       "http://localhost:5000/smpChat/image?name=close.png"
@@ -754,7 +769,7 @@
     );
     dialogChatMsgSend.setAttribute(
       "src",
-      "http://localhost:5000/smpChat/image?name=sendBtn.png"
+      "http://localhost:5000/smpChat/image?name=blueSend.png"
     );
     dialogChatAddLabel.htmlFor = "smp_chat_addImg";
     dialogChatAddInput.type = "file";
@@ -965,9 +980,16 @@
           profile.appendChild(profileImage);
           profile.appendChild(id);
           profile.appendChild(span);
-          profile.appendChild(time);
           container.appendChild(profile);
-
+          container.appendChild(time);
+          if (image !== null) {
+            contentsContainer.appendChild(contentImage);
+          } else {
+            contentsContainer.appendChild(content);
+          }
+          content.appendChild(onMessage);
+          container.appendChild(contentsContainer);
+          container.appendChild(time);
           /*  className & id   */
           id.className = "smpChat__dialog__id";
           profile.className = "smpChat__dialog__profile";
@@ -980,7 +1002,14 @@
         } else {
           /*  appned  */
           container.appendChild(time);
+          if (image !== null) {
+            contentsContainer.appendChild(contentImage);
+          } else {
+            contentsContainer.appendChild(content);
+          }
 
+          content.appendChild(onMessage);
+          container.appendChild(contentsContainer);
           /*  className & id   */
           container.className = `smpChat__dialog__containerRight smpChat__dialog__containerRight_${userId}`;
           contentsContainer.className =
@@ -989,16 +1018,6 @@
               : "smpChat__dialog__contentContainerRight";
         }
 
-        /*  appned  */
-
-        if (image !== null) {
-          contentsContainer.appendChild(contentImage);
-        } else {
-          contentsContainer.appendChild(content);
-        }
-
-        content.appendChild(onMessage);
-        container.appendChild(contentsContainer);
         dialog.appendChild(container);
 
         /*  className & id   */
@@ -1043,9 +1062,17 @@
           profile.appendChild(profileImage);
           profile.appendChild(id);
           profile.appendChild(span);
-          profile.appendChild(time);
-          container.appendChild(profile);
 
+          container.appendChild(profile);
+          container.appendChild(time);
+          if (image !== null) {
+            contentsContainer.appendChild(contentImage);
+          } else {
+            contentsContainer.appendChild(content);
+          }
+          content.appendChild(onMessage);
+          container.appendChild(contentsContainer);
+          container.appendChild(time);
           /*  className & id   */
           id.className = "smpChat__dialog__id";
           profile.className = "smpChat__dialog__profile";
@@ -1058,7 +1085,13 @@
         } else {
           /*  appned  */
           container.appendChild(time);
-
+          if (image !== null) {
+            contentsContainer.appendChild(contentImage);
+          } else {
+            contentsContainer.appendChild(content);
+          }
+          content.appendChild(onMessage);
+          container.appendChild(contentsContainer);
           /*  className & id   */
           container.className = `smpChat__dialog__containerRight smpChat__dialog__containerRight_${userId}`;
           contentsContainer.className =
@@ -1067,16 +1100,6 @@
               : "smpChat__dialog__contentContainerRight";
         }
 
-        /*  appned  */
-
-        if (image !== null) {
-          contentsContainer.appendChild(contentImage);
-        } else {
-          contentsContainer.appendChild(content);
-        }
-
-        content.appendChild(onMessage);
-        container.appendChild(contentsContainer);
         dialog.prepend(container);
 
         /*  className & id   */
@@ -1538,6 +1561,51 @@
     chatView.addEventListener("dragover", overViewHandler, false);
     chatView.addEventListener("dragleave", leaveViewHandler, false);
     chatView.addEventListener("drop", dropHandler, false);
+  };
+
+  const changeTheme = function changeSmpChatTheme() {
+    const theme = document.querySelector(".smpChat__section__theme");
+    const send = document.querySelector(".smpChat__dialog__sendImg");
+
+    document.documentElement.setAttribute("user-theme", "blue");
+
+    localStorage.setItem("user-theme", "blue");
+
+    const themeClickHandler = (e) => {
+      if (localStorage.getItem("user-theme") === "blue") {
+        document.documentElement.setAttribute("user-theme", "red");
+
+        theme.setAttribute(
+          "src",
+          "http://localhost:5000/smpChat/image?name=blueFlower.png"
+        );
+        send.setAttribute(
+          "src",
+          "http://localhost:5000/smpChat/image?name=redSend.png"
+        );
+
+        localStorage.setItem("user-theme", "red");
+        return;
+      }
+
+      if (localStorage.getItem("user-theme") === "red") {
+        document.documentElement.setAttribute("user-theme", "blue");
+
+        theme.setAttribute(
+          "src",
+          "http://localhost:5000/smpChat/image?name=redFlower.png"
+        );
+        send.setAttribute(
+          "src",
+          "http://localhost:5000/smpChat/image?name=blueSend.png"
+        );
+
+        localStorage.setItem("user-theme", "blue");
+        return;
+      }
+    };
+
+    theme.addEventListener("click", themeClickHandler, false);
   };
 
   class SmpChatError extends Error {
