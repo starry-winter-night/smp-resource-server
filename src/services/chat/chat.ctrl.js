@@ -131,6 +131,7 @@ export const saveMessage = async (
     image: filename,
     registerTime,
     roomName,
+    check: false,
   };
 
   await SmpChat.updateByMessage(smpChat._id, roomName, smpChatLogInfo);
@@ -225,6 +226,14 @@ export const getClientName = async ({ clientId, userId }) => {
   return clientName;
 };
 
+export const observeCheckMessage = async ({ clientId }, roomName) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+
+  if (!smpChat) return { result: false };
+
+  await SmpChat.updateByObserve(smpChat._id, roomName, true);
+};
+
 export const checkDuplicateUser = (() => {
   let accessUsers = [];
 
@@ -244,7 +253,7 @@ export const checkDuplicateUser = (() => {
       });
 
       if (message === "") {
-        accessUsers.push({ userId: userId, socketId: id });
+        accessUsers.push({ userId, socketId: id });
       }
     }
 

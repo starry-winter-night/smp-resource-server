@@ -11,6 +11,7 @@ import {
   loadDialog,
   getClientName,
   checkDuplicateUser,
+  observeCheckMessage,
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -60,6 +61,8 @@ smpChatIo.on("connection", async (socket) => {
   socketReceive(socket).dialog();
 
   socketReceive(socket).prevDialog();
+
+  socketReceive(socket).observe();
 });
 
 const socketSend = function sendSocketContact(socket) {
@@ -104,6 +107,9 @@ const socketSend = function sendSocketContact(socket) {
     prevDialog: (log) => {
       socket.emit("prevDialog", log);
     },
+    observe: (roomName) => {
+      socket.to(roomName).emit("observe", true);
+    },
   };
 };
 
@@ -128,9 +134,11 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     message: () => {
       socket.on("message", async (msg = null, img = null) => {
-        if (socket.userType === "client") {
-          await joinRoomMember(socket);
-        }
+        // 관리자.. 아무랑도 접속안했을때 처리하자..
+        // 연결이 되엇을때만 .. 연락하도록..
+        if (socket.userType === "manager" && !socket.joinRoom) return;
+
+        if (socket.userType === "client") await joinRoomMember(socket);
 
         const msgLog = await saveMessage(socket, msg, img);
 
@@ -146,6 +154,7 @@ const socketReceive = function receiveSocketContact(socket) {
         if (dialog.length === 0) return;
 
         socket.leave(prevUserId);
+
         socket.join(userId);
 
         socketSend(socket).dialog(dialog);
@@ -158,6 +167,13 @@ const socketReceive = function receiveSocketContact(socket) {
         if (prevDialog.length === 0) return;
 
         socketSend(socket).prevDialog(prevDialog);
+      });
+    },
+    observe: () => {
+      socket.on("observe", async (roomName) => {
+        await observeCheckMessage(socket, roomName);
+
+        socketSend(socket).observe(roomName);
       });
     },
   };

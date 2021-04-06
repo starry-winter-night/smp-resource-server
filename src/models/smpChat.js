@@ -29,6 +29,7 @@ const smpChatSchema = new Schema({
           image: String,
           registerTime: String,
           roomName: String,
+          observe: Boolean,
         },
       ],
     },
@@ -95,6 +96,13 @@ smpChatSchema.statics.updateByStayRoomOwnerId = function (
   return this.updateOne(
     { _id, "manager.managerId": managerId },
     { "manager.$.stayRoomOwnerId": clientId }
+  );
+};
+
+smpChatSchema.statics.updateByObserve = function (_id, clientName, observe) {
+  return this.updateOne(
+    { _id, "client.userId": clientName, "client.chatLog.userId": clientName },
+    { "client.$.chatLog.$[].observe": observe }
   );
 };
 
