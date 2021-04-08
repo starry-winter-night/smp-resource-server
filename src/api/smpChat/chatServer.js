@@ -11,7 +11,8 @@ import {
   loadDialog,
   getClientName,
   checkDuplicateUser,
-  observeCheckMessage,
+  observeMessageCheck,
+  countMessageAlarm,
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -108,7 +109,12 @@ const socketSend = function sendSocketContact(socket) {
       socket.emit("prevDialog", log);
     },
     observe: (roomName) => {
-      socket.to(roomName).emit("observe", true);
+      socket.to(roomName).emit("observe", true, roomName);
+    },
+    alarm: (alarm, roomName) => {
+      socket.userType === "manager"
+        ? socket.to(roomName).emit("alarm", alarm)
+        : socket.to("manager").emit("alarm", alarm);
     },
   };
 };
@@ -136,28 +142,38 @@ const socketReceive = function receiveSocketContact(socket) {
       socket.on("message", async (msg = null, img = null) => {
         // 관리자.. 아무랑도 접속안했을때 처리하자..
         // 연결이 되엇을때만 .. 연락하도록..
+        // 연결이 끊겼을때 상황부터 만드는게 맞을것 같다.
         if (socket.userType === "manager" && !socket.joinRoom) return;
 
         if (socket.userType === "client") await joinRoomMember(socket);
 
         const msgLog = await saveMessage(socket, msg, img);
 
+        const countAlarm = countMessageAlarm.increase(msgLog[0].userId);
+
+        socketSend(socket).alarm(countAlarm, msgLog[0].roomName);
         socketSend(socket).preview(msgLog);
         socketSend(socket).message(msgLog);
       });
     },
     dialog: () => {
-      socket.on("dialog", async (userId) => {
-        const prevUserId = await joinRoomMember(socket, userId);
+      socket.on("dialog", async (roomName) => {
+        const prevUserId = await joinRoomMember(socket, roomName);
         const dialog = await loadDialog(socket);
 
         if (dialog.length === 0) return;
 
         socket.leave(prevUserId);
 
-        socket.join(userId);
+        socket.join(roomName);
 
         socketSend(socket).dialog(dialog);
+
+        const result = await observeMessageCheck(socket, roomName);
+
+        if (!result) return;
+
+        socketSend(socket).observe(roomName);
       });
     },
     prevDialog: () => {
@@ -171,9 +187,17 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     observe: () => {
       socket.on("observe", async (roomName) => {
-        await observeCheckMessage(socket, roomName);
+        const result = await observeMessageCheck(socket, roomName);
+
+        if (!result) return;
 
         socketSend(socket).observe(roomName);
+
+        // 메세지를 보낸 유저의 아이디를 넣어야 한다.
+        // ctrl에서 roomName으로 매니저아이디를 찾자. 
+        // const countAlarm = countMessageAlarm.decrease(msgLog[0].userId);
+
+        // socketSend(socket).alarm(countAlarm, roomName);
       });
     },
   };

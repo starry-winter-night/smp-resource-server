@@ -131,7 +131,7 @@ export const saveMessage = async (
     image: filename,
     registerTime,
     roomName,
-    check: false,
+    observe: false,
   };
 
   await SmpChat.updateByMessage(smpChat._id, roomName, smpChatLogInfo);
@@ -226,12 +226,21 @@ export const getClientName = async ({ clientId, userId }) => {
   return clientName;
 };
 
-export const observeCheckMessage = async ({ clientId }, roomName) => {
+export const observeMessageCheck = async ({ clientId }, roomName) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
+  roomName = [roomName];
+
+  const chatLogs = filterSmpChatData(smpChat).recentChatLogs(roomName);
+
+  if (chatLogs[0].observe) {
+    return false;
+  }
   await SmpChat.updateByObserve(smpChat._id, roomName, true);
+
+  return true;
 };
 
 export const checkDuplicateUser = (() => {
@@ -258,5 +267,29 @@ export const checkDuplicateUser = (() => {
     }
 
     return { accessUsers, message, result };
+  };
+})();
+
+export const countMessageAlarm = (() => {
+  let alarmInfo = {};
+
+  return {
+    increase: (userId) => {
+      if (!alarmInfo[userId]) alarmInfo[userId] = 0;
+
+      alarmInfo[userId] = alarmInfo[userId] + 1;
+
+      return alarmInfo;
+    },
+    decrease: (userId) => {
+      if (!alarmInfo[userId]) return;
+
+      alarmInfo[userId] = 0;
+
+      return alarmInfo;
+    },
+    currCount: () => {
+      return alarmInfo;
+    },
   };
 })();
