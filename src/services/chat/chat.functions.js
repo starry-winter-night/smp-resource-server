@@ -151,15 +151,6 @@ export const saveImageFolderAndFile = (username, roomName, image) => {
   return { filename, buffer };
 };
 
-// export const raedImageFile = (dir) => {
-//   const name = fs.readdirSync(dir);
-//   const path = `${dir}${name[0]}`;
-//   const imgMime = mime.getType(path);
-//   const baseData = fs.readFileSync(path, "base64");
-//   const data = { imgMime: imgMime, baseData: baseData };
-//   return data;
-// }
-
 export const checkFunctionSpeed = (func, cnt, params) => {
   const startTime = new Date().getTime();
   const executeCount = cnt;

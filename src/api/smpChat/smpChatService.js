@@ -134,9 +134,13 @@
           resetHTML().dialog();
 
           if (dialog.length !== 0) {
-            dialog.forEach((logs) => contentsHTML().dialog(logs, userId));
+            dialog.forEach((logs) => {
+              contentsHTML().dialog(logs, userId);
 
-            observeChatView(socket, dialog[0].roomName);
+              if (!logs.observe && logs.userId !== userId) {
+                observeChatView(socket, dialog[0].roomName);
+              }
+            });
           }
 
           if (previewLog) {
@@ -200,9 +204,8 @@
           contentsHTML().dialog(message, userId);
 
           scrollBottom(document.querySelector(".smpChat__dialog__chatView"));
-
-          // 메세지 보낸이와 내 아이디가 다른 경우 즉, 상대가 보낸 메세지일때만
-          if (message.userId !== userId) {      
+          
+          if (message.userId !== userId) {
             observeChatView(socket, message.roomName);
           }
         });
@@ -217,7 +220,7 @@
       alarm: () => {
         socket.on("alarm", (msgCounts) => {
           let count = 0;
-
+          console.log(msgCounts);
           for (userId in msgCounts) count = count + msgCounts[userId];
 
           document.querySelector(".smpChat__message__alarm").innerHTML = count;
@@ -237,7 +240,7 @@
     };
   };
 
-  const checkPreview = (() => {
+  const checkPreview = (function checkSelectAndEffectAndDrawPreview() {
     let drawPreview = {};
 
     return {
@@ -690,6 +693,7 @@
     const theme = document.createElement("img");
     const closeImg = document.createElement("img");
     const dialog = document.createElement("div");
+    const alarm = document.createElement("p");
     const smpChatIconImg = document.createElement("img");
 
     /* dialog */
@@ -757,6 +761,7 @@
     /* smpchat */
 
     smpChatLayout.appendChild(smpChatIconImg);
+    smpChatLayout.appendChild(alarm);
     smpChatLayout.appendChild(section);
 
     /*****************************  className & id  *****************************/
@@ -764,6 +769,7 @@
     section.id = "smpChat_clientSection";
     section.className = "smpChat__section";
     contents.className = "smpChat__section__contents";
+    alarm.className = "smpChat__message__alarm";
     navbar.className = "smpChat__section__navbar";
     dialog.className =
       "smpChat__section__dialog smpChat__section__clientDialog";
@@ -1554,7 +1560,14 @@
       `.smpChat__connect__container_${roomName}`
     );
 
-    list.addEventListener("click", () => socketSend(socket).dialog(roomName));
+    list.addEventListener(
+      "click",
+      () => {
+        socketSend(socket).dialog(roomName);
+        socketSend(socket).observe(roomName);
+      },
+      false
+    );
     return;
   };
 
@@ -1796,7 +1809,10 @@
       const observer = new IntersectionObserver((entries, options) => {
         const active = icon.classList.contains("smp_active");
 
-        if (active) socketSend(socket).observe(roomName);
+        if (active) {
+          // 메시지 보낸 쪽이랑 현재 아이디랑 다를때 들어가야됨.
+          socketSend(socket).observe(roomName);
+        }
 
         return;
       });
