@@ -12,6 +12,7 @@ import {
   getClientName,
   checkDuplicateUser,
   observeMessageCheck,
+  getObserveCount
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -72,17 +73,19 @@ const socketSend = function sendSocketContact(socket) {
 
       let previewLog = null;
       let clientName = socket.userId;
+      let alarmCount = null;
 
       if (socket.userType === "manager") {
         previewLog = await getPreview(socket);
         clientName = await getClientName(socket);
+        alarmCount = await getObserveCount(socket);
       }
 
       socket.join(clientName);
 
       const dialog = await loadDialog(socket);
 
-      socket.emit("start", { dialog, previewLog });
+      socket.emit("start", { dialog, previewLog, alarmCount });
     },
     message: (log) => {
       if (log.length !== 0) {

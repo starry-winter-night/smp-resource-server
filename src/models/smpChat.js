@@ -112,7 +112,7 @@ smpChatSchema.statics.updateByRoomMember = function (
 };
 
 smpChatSchema.statics.updateByMessage = function (_id, clientName, chatLog) {
-  return this.updateOne(
+  return this.findOneAndUpdate(
     { _id, "client.userId": clientName },
     { $addToSet: { "client.$.chatLog": chatLog } },
     { returnOriginal: false }

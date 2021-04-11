@@ -132,6 +132,61 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       return member;
     },
+    observeCount: (userId, type, roomName) => {
+      if (type === "refresh") {
+        let previewCount = {};
+        let iconCount = 0;
+
+        for (let i = 0; i < smpChatDoc.client.length; i++) {
+          const client = smpChatDoc.client[i];
+
+          if (client.serverState === "off") return;
+
+          if (
+            client.roomMember.length === 1 ||
+            client.roomMember.indexOf(userId) !== -1
+          ) {
+            for (let j = client.chatLog.length - 1; j >= 0; j--) {
+              const chatLog = client.chatLog[j];
+
+              if (chatLog.observe) break;
+
+              if (!chatLog.observe && chatLog.userId !== userId) {
+                if (!previewCount[client.userId]) {
+                  previewCount[client.userId] = 0;
+                }
+
+                previewCount[client.userId] = previewCount[client.userId] + 1;
+
+                iconCount = iconCount + 1;
+              }
+            }
+          }
+        }
+        return { previewCount, iconCount };
+      }
+
+      if (type === "message") {
+        let count = 0;
+
+        for (let i = 0; i < smpChatDoc.client.length; i++) {
+          const client = smpChatDoc.client[i];
+
+          if (client.userId === roomName) {
+            for (let j = client.chatLog.length - 1; j >= 0; j--) {
+              const chatLog = client.chatLog[j];
+
+              if (chatLog.observe) break;
+
+              if (!chatLog.observe && chatLog.userId === userId) {
+                count = count + 1;
+              }
+            }
+          }
+        }
+        return count;
+      }
+    },
   };
 };
 
