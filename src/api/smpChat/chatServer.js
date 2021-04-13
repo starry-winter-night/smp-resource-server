@@ -12,7 +12,7 @@ import {
   getClientName,
   checkDuplicateUser,
   observeMessageCheck,
-  getObserveCount
+  getObserveCount,
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -31,6 +31,8 @@ smpChatIo.use(async (socket, next) => {
   const apiKey = socket.handshake.auth.apiKey;
   const verify = await verifyManagerInfo(clientId, apiKey);
 
+  
+
   if (!verify.result) return next(smpChatError(verify));
 
   socket.clientId = clientId;
@@ -48,6 +50,8 @@ smpChatIo.use(async (socket, next) => {
 
 smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
+
+  console.log(io.engine.clientsCount);
 
   socketSend(socket).start();
 
@@ -119,7 +123,9 @@ const socketSend = function sendSocketContact(socket) {
 const socketReceive = function receiveSocketContact(socket) {
   return {
     disconnect: () => {
-      socket.on("disconnect", async (reason) => {});
+      socket.on("disconnect", async (reason) => {
+        console.log(reason);
+      });
     },
     disconnecting: () => {
       socket.on("disconnecting", async (reason) => {
