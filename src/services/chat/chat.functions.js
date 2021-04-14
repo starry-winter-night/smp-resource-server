@@ -206,6 +206,78 @@ export const saveImageFolderAndFile = (username, roomName, image) => {
   return { filename, buffer };
 };
 
+export const checkDuplicateUser = (() => {
+  let accessUsers = [];
+
+  return ({ userId, id }, arr = []) => {
+    let message = "";
+    let result = true;
+
+    if (arr.length !== 0) {
+      accessUsers = accessUsers.filter((user) => user.userId !== userId);
+      message = "";
+    } else {
+      accessUsers.map((user) => {
+        if (user.userId === userId) {
+          message = "duplicate_connection";
+          result = false;
+        }
+      });
+
+      if (message === "") {
+        accessUsers.push({ userId, socketId: id });
+      }
+    }
+
+    return { accessUsers, message, result };
+  };
+})();
+
+export const checkRefreshUser = (() => {
+  let userState = [];
+  let check = false;
+
+  return ({ userId }, state) => {
+    const userInfo = { userId, state };
+
+    if (!userState) {
+      userState.push(userInfo);
+
+      return;
+    }
+
+    if (userState) {
+      for (let i = 0; i < userState.length; i++) {
+        if (userState[i].userId === userInfo.userId && state === "refresh") {
+          check = true;
+          userState[i].state = "off";
+
+          return;
+        }
+
+        if (userState[i].userId === userInfo.userId && state === "access") {
+          check = true;
+          userState[i].state = "on";
+
+          return;
+        }
+
+        if (userState[i].userId === userInfo.userId && state === "check") {
+          check = true;
+      
+          return userState[i].state;
+        }
+      }
+
+      if (!check) {
+        userState.push(userInfo);
+
+        return;
+      }
+    }
+  };
+})();
+
 export const checkFunctionSpeed = (func, cnt, params) => {
   const startTime = new Date().getTime();
   const executeCount = cnt;

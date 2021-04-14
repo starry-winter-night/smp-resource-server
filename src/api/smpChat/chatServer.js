@@ -1,6 +1,9 @@
 import { Server } from "socket.io";
 import { httpServer } from "../../config/chatServer";
-import schedule from "node-schedule";
+import {
+  checkDuplicateUser,
+  checkRefreshUser,
+} from "../../services/chat/chat.functions.js";
 import {
   verifyManagerInfo,
   judgeUserType,
@@ -10,7 +13,6 @@ import {
   saveMessage,
   loadDialog,
   getClientName,
-  checkDuplicateUser,
   observeMessageCheck,
   getObserveCount,
 } from "../../services/chat/chat.ctrl";
@@ -31,14 +33,13 @@ smpChatIo.use(async (socket, next) => {
   const apiKey = socket.handshake.auth.apiKey;
   const verify = await verifyManagerInfo(clientId, apiKey);
 
-  
-
   if (!verify.result) return next(smpChatError(verify));
 
   socket.clientId = clientId;
   socket.userId = socket.handshake.query.userId;
   socket.userType = await judgeUserType(socket.clientId, socket.userId);
 
+  checkRefreshUser(socket, "access");
   const socketUsers = checkDuplicateUser(socket);
 
   if (!socketUsers.result) return next(smpChatError(socketUsers));
@@ -51,7 +52,7 @@ smpChatIo.use(async (socket, next) => {
 smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
-  console.log(io.engine.clientsCount);
+  // console.log(io.engine.clientsCount);
 
   socketSend(socket).start();
 
@@ -124,12 +125,23 @@ const socketReceive = function receiveSocketContact(socket) {
   return {
     disconnect: () => {
       socket.on("disconnect", async (reason) => {
-        console.log(reason);
+        checkDuplicateUser(socket, socket.users);
+
       });
     },
     disconnecting: () => {
       socket.on("disconnecting", async (reason) => {
         checkDuplicateUser(socket, socket.users);
+        checkRefreshUser(socket, "refresh");
+
+        setTimeout(async () => {
+          const result = checkRefreshUser(socket, "check");
+          if (result === "off") {
+            const setState = await setServerState(socket, result);
+            
+            if (!setState.result) console.log("err");
+          }
+        }, 30000);
       });
     },
     switch: () => {

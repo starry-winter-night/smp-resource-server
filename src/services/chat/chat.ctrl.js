@@ -256,32 +256,7 @@ export const observeMessageCheck = async ({ clientId }, roomName) => {
   return true;
 };
 
-export const checkDuplicateUser = (() => {
-  let accessUsers = [];
 
-  return ({ userId, id }, arr = []) => {
-    let message = "";
-    let result = true;
-
-    if (arr.length !== 0) {
-      accessUsers = accessUsers.filter((user) => user.userId !== userId);
-      message = "";
-    } else {
-      accessUsers.map((user) => {
-        if (user.userId === userId) {
-          message = "duplicate_connection";
-          result = false;
-        }
-      });
-
-      if (message === "") {
-        accessUsers.push({ userId, socketId: id });
-      }
-    }
-
-    return { accessUsers, message, result };
-  };
-})();
 
 export const getObserveCount = async ({ clientId, userId }) => {
   const smpChat = await SmpChat.findByClientId(clientId);
