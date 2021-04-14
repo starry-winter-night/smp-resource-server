@@ -172,14 +172,20 @@ export const joinRoomMember = async (
   }
 
   if (userType === "manager" && clientName) {
-    // 순서 중요
+    const state = filterSmpChatData(smpChat).checkRoomMember(
+      userId,
+      clientName
+    );
+
+    if (state === "chatting") return { state };
+
     const prevUser = filterSmpChatData(smpChat).recentStayRoomOwerId(userId);
 
     await SmpChat.updateByStayRoomOwnerId(smpChat._id, clientName, userId);
 
     await SmpChat.updateByRoomMember(smpChat._id, clientName, userId);
 
-    return prevUser;
+    return { prevUser };
   }
 };
 
@@ -190,7 +196,7 @@ export const getPreview = async ({ clientId, userId }) => {
 
   const userList = filterSmpChatData(smpChat).availChatClient(userId);
 
-  if (userList.length === 0) return;
+  if (userList.length === 0 || !userList) return;
 
   const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
 
@@ -255,8 +261,6 @@ export const observeMessageCheck = async ({ clientId }, roomName) => {
 
   return true;
 };
-
-
 
 export const getObserveCount = async ({ clientId, userId }) => {
   const smpChat = await SmpChat.findByClientId(clientId);

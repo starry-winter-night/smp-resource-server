@@ -115,22 +115,27 @@ export const filterSmpChatData = (smpChatDoc) => {
       return dialog;
     },
     availChatClient: (userId) => {
-      const member = smpChatDoc.client
-        .map((list) => list.roomMember)
-        .filter((currMember) => {
-          if (currMember.length === 1) return currMember;
+      const client = smpChatDoc.client;
+      for (let i = 0; i < client.length; i++) {
+        if (client[i].server === "off") return;
 
-          if (currMember.length > 1) {
-            const index = currMember.indexOf(userId);
+        const member = client
+          .map((list) => list.roomMember)
+          .filter((currMember) => {
+            if (currMember.length === 1) return currMember;
 
-            if (index === -1) return;
+            if (currMember.length > 1) {
+              const index = currMember.indexOf(userId);
 
-            return currMember;
-          }
-        })
-        .map((roomMember) => roomMember[0]);
+              if (index === -1) return;
 
-      return member;
+              return currMember;
+            }
+          })
+          .map((roomMember) => roomMember[0]);
+
+        return member;
+      }
     },
     observeCount: (userId, type, roomName) => {
       if (type === "refresh") {
@@ -186,6 +191,25 @@ export const filterSmpChatData = (smpChatDoc) => {
         }
         return count;
       }
+    },
+    checkRoomMember: (userId, roomName) => {
+      let state = null;
+      for (let i = 0; i < smpChatDoc.client.length; i++) {
+        const client = smpChatDoc.client[i];
+
+        if (client.userId === roomName) {
+          if (client.roomMember.length >= 2) {
+            const index = client.roomMember.indexOf(userId);
+
+            if (index === -1) {
+              state = "chatting";
+
+              break;
+            }
+          }
+        }
+      }
+      return state;
     },
   };
 };
@@ -264,7 +288,7 @@ export const checkRefreshUser = (() => {
 
         if (userState[i].userId === userInfo.userId && state === "check") {
           check = true;
-      
+
           return userState[i].state;
         }
       }

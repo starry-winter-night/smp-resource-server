@@ -101,16 +101,22 @@ const socketSend = function sendSocketContact(socket) {
       socket.emit("switch", state);
     },
     preview: (log) => {
+      const PREVIEW_TYPE = "Create";
+
       if (log[0].message === null && log[0].image) {
         log[0].message = "사진을 보냈습니다.";
       }
 
       socket.userType === "manager"
-        ? socket.emit("preview", log[0])
-        : socket.to("manager").emit("preview", log[0]);
+        ? socket.emit("preview", log[0], PREVIEW_TYPE)
+        : socket.to("manager").emit("preview", log[0], PREVIEW_TYPE);
     },
-    dialog: (log) => {
-      socket.emit("dialog", log);
+    dialog: (dialog, roomName) => {
+      const PREVIEW_TYPE = "Delete";
+
+      socket.to("manager").emit("preview", roomName, PREVIEW_TYPE);
+
+      socket.emit("dialog", dialog);
     },
     prevDialog: (log) => {
       socket.emit("prevDialog", log);
@@ -166,16 +172,19 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     dialog: () => {
       socket.on("dialog", async (roomName) => {
-        const prevUserId = await joinRoomMember(socket, roomName);
+        const result = await joinRoomMember(socket, roomName);
+
+        if (result.state === "chatting") return;
+
         const dialog = await loadDialog(socket);
 
         if (dialog.length === 0) return;
 
-        socket.leave(prevUserId);
+        socket.leave(result.prevUserId);
 
         socket.join(roomName);
 
-        socketSend(socket).dialog(dialog);
+        socketSend(socket).dialog(dialog, roomName);
       });
     },
     prevDialog: () => {
