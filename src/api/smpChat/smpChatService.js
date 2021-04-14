@@ -1079,10 +1079,10 @@
       /*  className & id   */
       container.className = "smpChat__dialog__containerLeft";
       contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
+      profile.className = "smpChat__dialog__profile smpChat__userSelect__none";
       profileImage.className = "smpChat__dialog__profileImage";
       content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
+      time.className = "smpChat__dialog__time smpChat__userSelect__none ";
       id.className = "smpChat__dialog__id";
       span.className = "smpChat__dialog__span";
 
@@ -1127,10 +1127,11 @@
       /*  className & id   */
       container.className = "smpChat__dialog__containerLeft";
       contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
+      profile.className = "smpChat__dialog__profile smpChat__userSelect__none";
       profileImage.className = "smpChat__dialog__profileImage";
       link.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
+      time.className =
+        "smpChat__dialog__time smpChat__userSelect__none smpChat__userSelect__none";
       id.className = "smpChat__dialog__id";
       span.className = "smpChat__dialog__span";
 
@@ -1191,10 +1192,11 @@
       /*  className & id   */
       container.className = "smpChat__dialog__containerLeft";
       contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
+      profile.className = "smpChat__dialog__profile smpChat__userSelect__none";
       profileImage.className = "smpChat__dialog__profileImage";
       content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
+      time.className =
+        "smpChat__dialog__time smpChat__userSelect__none smpChat__userSelect__none";
       id.className = "smpChat__dialog__id";
       span.className = "smpChat__dialog__span";
 
@@ -1229,7 +1231,7 @@
       container.className = "smpChat__dialog__containerRight";
       contentsContainer.className = "smpChat__dialog__contentContainerRight";
       content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
+      time.className = "smpChat__dialog__time smpChat__userSelect__none";
 
       /*  set  */
       time.setAttribute("datetime", createTimeDate());
@@ -1265,8 +1267,8 @@
       /*  className & id   */
       content.className = "smpChat__dialog__content";
       contentImage.className = "smpChat__dialog__contentImage";
-      time.className = "smpChat__dialog__time";
-      observe.className = "smpChat__dialog__observe";
+      time.className = "smpChat__dialog__time smpChat__userSelect__none";
+      observe.className = "smpChat__dialog__observe smpChat__userSelect__none";
 
       /*  set  */
       time.setAttribute("datetime", registerTime);
@@ -1274,6 +1276,7 @@
 
       if (image !== null) {
         contentImage.src = `data:image/jpeg;base64,${image}`;
+        contentImage.setAttribute("ondragstart", "return false");
 
         contentImage.onload = () => scrollBottom(dialog);
       }
@@ -1302,7 +1305,8 @@
 
         /*  className & id   */
         id.className = "smpChat__dialog__id";
-        profile.className = "smpChat__dialog__profile";
+        profile.className =
+          "smpChat__dialog__profile smpChat__userSelect__none";
         profileImage.className = "smpChat__dialog__profileImage";
         dialog.className = `smpChat__dialog__chatView smpChat__dialog__chatView_${roomName}`;
         container.className = "smpChat__dialog__containerLeft";
@@ -1316,6 +1320,7 @@
           msg.userType === "manager"
             ? "http://localhost:5000/smpChat/image?name=smpark.jpg"
             : "http://localhost:5000/smpChat/image?name=발리.jpg";
+        profileImage.setAttribute("ondragstart", "return false");
       }
 
       function userMessage() {
@@ -1383,7 +1388,7 @@
       /*  className & id   */
       content.className = "smpChat__dialog__content";
       contentImage.className = `smpChat__dialog__contentImage smpChat__dialog__contentImage_${userId}`;
-      time.className = `smpChat__dialog__time smpChat__dialog__time_${userId}`;
+      time.className = `smpChat__dialog__time smpChat__dialog__time_${userId} smpChat__dialog__time smpChat__userSelect__none`;
 
       /*  set  */
       time.setAttribute("datetime", registerTime);
@@ -1416,7 +1421,8 @@
         container.appendChild(time);
         /*  className & id   */
         id.className = "smpChat__dialog__id";
-        profile.className = "smpChat__dialog__profile";
+        profile.className =
+          "smpChat__dialog__profile smpChat__userSelect__none";
         profileImage.className = "smpChat__dialog__profileImage";
         container.className = "smpChat__dialog__containerLeft";
         contentsContainer.className =
@@ -1472,7 +1478,8 @@
 
       /*  className & id   */
       container.className = "smpChat__dialog__systemBar";
-      content.className = "smpChat__dialog__systemMsg";
+      content.className =
+        "smpChat__dialog__systemMsg smpChat__userSelect__none";
 
       /*  function  */
       scrollBottom(dialog);
@@ -1532,11 +1539,11 @@
 
         /*  className & id   */
 
-        id.className = "smpChat__connect__id";
-        time.className = `smpChat__connect__time smpChat__connect__time_${roomName}`;
+        id.className = "smpChat__connect__id smpChat__userSelect__none";
+        time.className = `smpChat__connect__time smpChat__connect__time_${roomName} smpChat__userSelect__none`;
         content.className = `smpChat__connect__content smpChat__connect__content_${roomName}`;
         container.className = `smpChat__connect__container smpChat__connect__container_${roomName}`;
-        previewAlarm.className = `smpChat__connect_previewAlarm smpChat__connect_previewAlarm_${roomName}`;
+        previewAlarm.className = `smpChat__connect_previewAlarm smpChat__connect_previewAlarm_${roomName} smpChat__userSelect__none`;
         contentsContainer.className = "smpChat__connect__contentsContainer";
 
         /*  set  */
@@ -1650,16 +1657,17 @@
   };
 
   const clickPreview = function clickPreviewJoinRoom(socket, roomName) {
-    const list = document.querySelector(
+    const list = document.querySelector(".smpChat__connect__list");
+    const container = document.querySelector(
       `.smpChat__connect__container_${roomName}`
     );
     const alarm = document.querySelector(
       `.smpChat__connect_previewAlarm_${roomName}`
     );
 
-    list.addEventListener("click", previewClickHandler, false);
+    container.addEventListener("click", previewClickHandler, false);
 
-    function previewClickHandler() {
+    function previewClickHandler(e) {
       alarm.classList.remove("view");
 
       alarm.textContent = 0;
@@ -1916,9 +1924,10 @@
   const effectSelect = function effectPreviewSelect(roomName) {
     if (!roomName) return;
 
-    const list = document.querySelectorAll(".smpChat__connect__container");
+    const list = document.querySelector(".smpChat__connect__list");
+    const container = document.querySelectorAll(".smpChat__connect__container");
 
-    list.forEach((dom) => dom.classList.remove("select"));
+    container.forEach((dom) => dom.classList.remove("select"));
 
     const clickedDom = document.querySelector(
       `.smpChat__connect__container_${roomName}`
@@ -1926,6 +1935,8 @@
 
     clickedDom.classList.remove("effect");
     clickedDom.classList.add("select");
+    
+    list.insertBefore(clickedDom, list.firstChild);
   };
 
   const observeChatView = function observeMessageRead(socket, roomName) {
