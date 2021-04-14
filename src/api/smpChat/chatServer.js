@@ -126,7 +126,6 @@ const socketReceive = function receiveSocketContact(socket) {
     disconnect: () => {
       socket.on("disconnect", async (reason) => {
         checkDuplicateUser(socket, socket.users);
-
       });
     },
     disconnecting: () => {
@@ -138,7 +137,7 @@ const socketReceive = function receiveSocketContact(socket) {
           const result = checkRefreshUser(socket, "check");
           if (result === "off") {
             const setState = await setServerState(socket, result);
-            
+
             if (!setState.result) console.log("err");
           }
         }, 30000);
@@ -155,14 +154,11 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     message: () => {
       socket.on("message", async (msg = null, img = null) => {
-        // 관리자.. 아무랑도 접속안했을때 처리하자..
-        // 연결이 되엇을때만 .. 연락하도록..
-        // 연결이 끊겼을때 상황부터 만드는게 맞을것 같다.
-        // if (socket.userType === "manager" && !socket.joinRoom) return;
-
         if (socket.userType === "client") await joinRoomMember(socket);
 
         const msgLog = await saveMessage(socket, msg, img);
+
+        if (!msgLog) return;
 
         socketSend(socket).preview(msgLog);
         socketSend(socket).message(msgLog);

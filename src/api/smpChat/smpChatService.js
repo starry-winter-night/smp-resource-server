@@ -37,7 +37,7 @@
 
             clickConn(socket);
 
-            messageSend(socket);
+            messageSend(socket, data.type);
 
             dialogScroll(socket);
 
@@ -336,7 +336,7 @@
     return {
       serverSwitch: (state) => socket.emit("switch", state),
 
-      message: (msg = null, img = null) => socket.emit("message", msg, img),
+      message: (msg, img) => socket.emit("message", msg, img),
 
       dialog: (userId) => socket.emit("dialog", userId),
 
@@ -872,11 +872,12 @@
     }
   };
 
-  const messageSend = function sendMessageProcess(socket) {
+  const messageSend = function sendMessageProcess(socket, type) {
     const message = document.querySelector(".smpChat__dialog__msgTextArea");
     const footer = document.querySelector(".smpChat__dialog__footer");
     const chatView = document.querySelector(".smpChat__dialog__chatView");
     const sendButton = document.querySelector(".smpChat__dialog__sendImg");
+
     const checkbox =
       document.querySelector(`.smpChat__connect__switchInput`) ||
       document.querySelector(`.smpChat__dialog__switchInput`);
@@ -894,7 +895,23 @@
 
           const state = arg.checkbox.checked ? "on" : "off";
 
-          if (state === "on") socketSend(arg.socket).message(msg);
+          if (state === "on") {
+            if (type === "manager") {
+              if (checkManagerConnect() === "chatting") {
+                socketSend(arg.socket).message(msg);
+              }
+
+              if (checkManagerConnect() === "waiting") {
+                contentsHTML.drawOfflineMessage(msg);
+                createLinkInfo(msg);
+              }
+            }
+
+            if (type === "client") {
+              socketSend(arg.socket).message(msg);
+            }
+          }
+
           if (state === "off") {
             contentsHTML.drawOfflineMessage(msg);
             createLinkInfo(msg);
@@ -940,6 +957,20 @@
 
       function checkEmptyString(data) {
         return typeof data === "string" && data.trim() !== "" ? true : false;
+      }
+
+      function checkManagerConnect() {
+        const container = document.querySelectorAll(
+          ".smpChat__connect__container"
+        );
+        const arrContainer = [...container];
+
+        for (let i = 0; i < arrContainer.length; i++) {
+          if (arrContainer[i].classList.contains("select")) {
+            return "chatting";
+          }
+        }
+        return "waiting";
       }
     }
   };
