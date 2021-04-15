@@ -1,13 +1,11 @@
 import { Server } from "socket.io";
 import { httpServer } from "../../config/chatServer";
-import {
-  checkDuplicateUser,
-  checkRefreshUser,
-} from "../../services/chat/chat.functions.js";
+import { checkDuplicateUser } from "../../services/chat/chat.functions.js";
 import {
   verifyManagerInfo,
   judgeUserType,
   setServerState,
+  getServerState,
   joinRoomMember,
   getPreview,
   saveMessage,
@@ -15,6 +13,7 @@ import {
   getClientName,
   observeMessageCheck,
   getObserveCount,
+  getRoomMember,
 } from "../../services/chat/chat.ctrl";
 
 const io = new Server(httpServer, {
@@ -39,7 +38,6 @@ smpChatIo.use(async (socket, next) => {
   socket.userId = socket.handshake.query.userId;
   socket.userType = await judgeUserType(socket.clientId, socket.userId);
 
-  checkRefreshUser(socket, "access");
   const socketUsers = checkDuplicateUser(socket);
 
   if (!socketUsers.result) return next(smpChatError(socketUsers));
@@ -74,21 +72,25 @@ smpChatIo.on("connection", async (socket) => {
 const socketSend = function sendSocketContact(socket) {
   return {
     start: async () => {
-      socket.join(socket.userType);
-
       let previewLog = null;
       let clientName = socket.userId;
       let alarmCount = null;
 
       if (socket.userType === "manager") {
         previewLog = await getPreview(socket);
+        if (!previewLog) return;
+
         clientName = await getClientName(socket);
         alarmCount = await getObserveCount(socket);
       }
 
-      socket.join(clientName);
+      let dialog = await loadDialog(socket);
 
-      const dialog = await loadDialog(socket);
+      if (dialog.length === 0 || !dialog) dialog = [];
+
+      socket.join(socket.userType);
+      socket.join(socket.userId);
+      socket.join(clientName);
 
       socket.emit("start", { dialog, previewLog, alarmCount });
     },
@@ -96,6 +98,9 @@ const socketSend = function sendSocketContact(socket) {
       if (log.length !== 0) {
         smpChatIo.to(log[0].roomName).emit("message", log[0]);
       }
+    },
+    systemMessage: (message, userId) => {
+      socket.to(userId).emit("systemMessage", message);
     },
     switch: (state) => {
       socket.emit("switch", state);
@@ -137,20 +142,32 @@ const socketReceive = function receiveSocketContact(socket) {
     disconnecting: () => {
       socket.on("disconnecting", async (reason) => {
         checkDuplicateUser(socket, socket.users);
-        checkRefreshUser(socket, "refresh");
+        await setServerState(socket, "refresh");
 
         setTimeout(async () => {
-          const result = checkRefreshUser(socket, "check");
-          if (result === "off") {
-            const setState = await setServerState(socket, result);
+          const state = await getServerState(socket);
 
-            if (!setState.result) console.log("err");
+          if (state === "refresh") {
+            await setServerState(socket, "off");
+
+            const members = await getRoomMember(socket);
+
+            if (!members.result) return;
+
+            members.result.forEach((memberId) => {
+              socketSend(socket).systemMessage(
+                `${socket.userId}님의 서버가 종료되었습니다.`,
+                memberId
+              );
+            });
           }
-        }, 30000);
+        }, 3000);
       });
     },
     switch: () => {
       socket.on("switch", async (state) => {
+        if (state === "refresh") state = "on";
+
         const setState = await setServerState(socket, state);
 
         if (!setState.result) console.log("err");
@@ -178,7 +195,7 @@ const socketReceive = function receiveSocketContact(socket) {
 
         const dialog = await loadDialog(socket);
 
-        if (dialog.length === 0) return;
+        if (dialog.length === 0 || !dialog) return;
 
         socket.leave(result.prevUserId);
 
@@ -191,7 +208,7 @@ const socketReceive = function receiveSocketContact(socket) {
       socket.on("prevDialog", async (seq) => {
         const prevDialog = await loadDialog(socket, seq);
 
-        if (prevDialog.length === 0) return;
+        if (prevDialog.length === 0 || !prevDialog) return;
 
         socketSend(socket).prevDialog(prevDialog);
       });

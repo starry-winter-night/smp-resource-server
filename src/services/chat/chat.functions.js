@@ -91,17 +91,16 @@ export const filterSmpChatData = (smpChatDoc) => {
       let clientLength = smpChatDoc.client.length;
 
       for (let i = 0; i < clientLength; i++) {
-        if (smpChatDoc.client[i].userId === userId) {
+        const client = smpChatDoc.client[i];
+        if (client.userId === userId) {
           const chatLogLength =
-            lastDialogNum === null
-              ? smpChatDoc.client[i].chatLog.length
-              : lastDialogNum - 1;
+            lastDialogNum === null ? client.chatLog.length : lastDialogNum - 1;
           let getLogNum = chatLogLength - dialogNum;
 
           if (getLogNum < 0) getLogNum = 0;
 
           for (let j = getLogNum; j < chatLogLength; j++) {
-            const chatLog = smpChatDoc.client[i].chatLog[j];
+            const chatLog = client.chatLog[j];
 
             if (chatLog.image !== null && chatLog.message === null) {
               chatLog.image = fs.readFileSync(chatLog.image).toString("base64");
@@ -115,27 +114,21 @@ export const filterSmpChatData = (smpChatDoc) => {
       return dialog;
     },
     availChatClient: (userId) => {
-      const client = smpChatDoc.client;
-      for (let i = 0; i < client.length; i++) {
-        if (client[i].server === "off") return;
+      const member = smpChatDoc.client
+        .filter((list) => {
+          if (list.serverState === "on") {
+            if (list.roomMember.length === 1) return list.roomMember;
 
-        const member = client
-          .map((list) => list.roomMember)
-          .filter((currMember) => {
-            if (currMember.length === 1) return currMember;
+            if (list.roomMember.length > 1) {
+              const index = list.roomMember.indexOf(userId);
 
-            if (currMember.length > 1) {
-              const index = currMember.indexOf(userId);
-
-              if (index === -1) return;
-
-              return currMember;
+              if (index !== -1) return list.roomMember;
             }
-          })
-          .map((roomMember) => roomMember[0]);
+          }
+        })
+        .map((list) => list.roomMember[0]);
 
-        return member;
-      }
+      return member;
     },
     observeCount: (userId, type, roomName) => {
       if (type === "refresh") {
@@ -145,25 +138,25 @@ export const filterSmpChatData = (smpChatDoc) => {
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           const client = smpChatDoc.client[i];
 
-          if (client.serverState === "off") return;
+          if (client.serverState === "on") {
+            if (
+              client.roomMember.length === 1 ||
+              client.roomMember.indexOf(userId) !== -1
+            ) {
+              for (let j = client.chatLog.length - 1; j >= 0; j--) {
+                const chatLog = client.chatLog[j];
 
-          if (
-            client.roomMember.length === 1 ||
-            client.roomMember.indexOf(userId) !== -1
-          ) {
-            for (let j = client.chatLog.length - 1; j >= 0; j--) {
-              const chatLog = client.chatLog[j];
+                if (chatLog.observe) break;
 
-              if (chatLog.observe) break;
+                if (!chatLog.observe && chatLog.userId !== userId) {
+                  if (!previewCount[client.userId]) {
+                    previewCount[client.userId] = 0;
+                  }
 
-              if (!chatLog.observe && chatLog.userId !== userId) {
-                if (!previewCount[client.userId]) {
-                  previewCount[client.userId] = 0;
+                  previewCount[client.userId] = previewCount[client.userId] + 1;
+
+                  iconCount = iconCount + 1;
                 }
-
-                previewCount[client.userId] = previewCount[client.userId] + 1;
-
-                iconCount = iconCount + 1;
               }
             }
           }
@@ -211,6 +204,40 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
       return state;
     },
+    getRoomMember: (userId, userType) => {
+      let clientMembers = [];
+      for (let i = 0; i < smpChatDoc.client.length; i++) {
+        const client = smpChatDoc.client[i];
+
+        if (client.serverState === "on") {
+          if (userType === "manager") {
+            if (client.roomMember.length >= 2) {
+              const index = client.roomMember.indexOf(userId);
+              if (index !== -1) {
+                client.roomMember.forEach((member) => {
+                  if (member !== userId) {
+                    clientMembers.push(member);
+                  }
+                });
+              }
+            }
+          }
+        }
+        if (userType === "client") {
+          if (client.userId === userId) {
+            if (client.roomMember.length >= 2) {
+              client.roomMember.forEach((member) => {
+                if (member !== userId) {
+                  clientMembers.push(member);
+                }
+              });
+            }
+          }
+        }
+      }
+
+      return clientMembers;
+    },
   };
 };
 
@@ -257,50 +284,6 @@ export const checkDuplicateUser = (() => {
   };
 })();
 
-export const checkRefreshUser = (() => {
-  let userState = [];
-  let check = false;
-
-  return ({ userId }, state) => {
-    const userInfo = { userId, state };
-
-    if (!userState) {
-      userState.push(userInfo);
-
-      return;
-    }
-
-    if (userState) {
-      for (let i = 0; i < userState.length; i++) {
-        if (userState[i].userId === userInfo.userId && state === "refresh") {
-          check = true;
-          userState[i].state = "off";
-
-          return;
-        }
-
-        if (userState[i].userId === userInfo.userId && state === "access") {
-          check = true;
-          userState[i].state = "on";
-
-          return;
-        }
-
-        if (userState[i].userId === userInfo.userId && state === "check") {
-          check = true;
-
-          return userState[i].state;
-        }
-      }
-
-      if (!check) {
-        userState.push(userInfo);
-
-        return;
-      }
-    }
-  };
-})();
 
 export const checkFunctionSpeed = (func, cnt, params) => {
   const startTime = new Date().getTime();

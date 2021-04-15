@@ -50,14 +50,15 @@ smpChat.get("/chatService.css", (ctx) => {
 
 smpChat.get("/", async (ctx) => {
   const { clientId, userId } = ctx.query;
-  const type = await judgeUserType(clientId, userId);
+  const userType = await judgeUserType(clientId, userId);
+  const data = { clientId, userId, userType };
   let state = "";
 
-  await registerManager(clientId, userId, type);
+  await registerManager(data);
 
-  state = await getServerState(clientId, userId, type);
+  state = await getServerState(data);
 
-  ctx.body = { type, state };
+  ctx.body = { type: userType, state };
 });
 
 export default smpChat;

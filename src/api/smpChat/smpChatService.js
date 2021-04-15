@@ -33,13 +33,13 @@
 
             changeSwitch(data.state);
 
-            refleshConn(socket, data.state);
+            refreshConn(socket, data.state);
 
             clickConn(socket);
 
             messageSend(socket, data.type);
 
-            dialogScroll(socket);
+            loadScroll(socket);
 
             sendImage(socket);
 
@@ -60,6 +60,8 @@
             socketReceive(socket).prevDialog(userId);
 
             socketReceive(socket).message(userId);
+
+            socketReceive(socket).systemMessage(userId);
 
             socketReceive(socket).observe();
 
@@ -110,6 +112,7 @@
       dialog,
       prevDialog,
       message,
+      systemMessage,
       observe,
       alarm,
       disconnect,
@@ -125,9 +128,12 @@
     }
     function btnSwitch() {
       socket.on("switch", (state) => {
-        if (state === "off") connServer.off(socket);
-
-        contentsHTML.drawSystemAlarm(state);
+        if (state === "off") {
+          connServer.off(socket);
+          resetHTML.dialog();
+          contentsHTML.drawNotice();
+          contentsHTML.drawSystemMessage(state);
+        }
       });
     }
     function start(userId, type) {
@@ -149,6 +155,8 @@
             }
           });
 
+          contentsHTML.drawSystemMessage("on");
+
           drawAlarm.icon(count);
         }
 
@@ -167,9 +175,11 @@
 
             if (drawPreviewCount === 1) clickPreview(socket, logs.roomName);
 
-            drawAlarm.refleshPreview(alarmCount.previewCount, logs.roomName);
+            if (alarmCount) {
+              drawAlarm.refleshPreview(alarmCount.previewCount, logs.roomName);
 
-            drawAlarm.icon(alarmCount.iconCount);
+              drawAlarm.icon(alarmCount.iconCount);
+            }
           });
 
           if (dialog.length !== 0 && type === "manager") {
@@ -178,6 +188,8 @@
         }
 
         drawAlarm.clickCloseReDraw();
+
+        loadScroll(socket);
       });
     }
     function preview(userId) {
@@ -301,6 +313,18 @@
         }
       });
     }
+    function systemMessage() {
+      socket.on("systemMessage", (message) => {
+        const checkbox =
+          document.querySelector(`.smpChat__connect__switchInput`) ||
+          document.querySelector(`.smpChat__dialog__switchInput`);
+        let state = null;
+
+        if (checkbox.checked) state = "on";
+
+        contentsHTML.drawSystemMessage(state, message);
+      });
+    }
     function observe() {
       socket.on("observe", (observe) => {
         if (observe) {
@@ -311,7 +335,7 @@
     function alarm() {
       socket.on("alarm", (msgCounts) => {
         let count = 0;
-        console.log(msgCounts);
+
         for (userId in msgCounts) count = count + msgCounts[userId];
 
         document.querySelector(".smpChat__message__alarm").textContent = count;
@@ -1032,7 +1056,7 @@
       drawOfflineMessage,
       drawDialog,
       drawPrevDialog,
-      drawSystemAlarm,
+      drawSystemMessage,
       drawPreview,
     };
 
@@ -1450,7 +1474,7 @@
       }
     }
 
-    function drawSystemAlarm(state, msg = false) {
+    function drawSystemMessage(state, msg = false) {
       /*  layout  */
       const dialog = document.querySelector(".smpChat__dialog__chatView");
       const container = document.createElement("div");
@@ -1460,19 +1484,18 @@
       let systemMsgText = null;
 
       if (state === "on" && !msg) {
-        systemMsgText = document.createTextNode("서버에 연결되었습니다.");
+        systemMsgText = "서버에 연결되었습니다. [온라인]";
       }
 
       if (state === "off" && !msg) {
-        systemMsgText = document.createTextNode("서버에 연결되지 않았습니다.");
+        systemMsgText = "서버에 연결되지 않았습니다. [오프라인]";
       }
 
-      if (state === "on" && msg) {
-        systemMsgText = document.createTextNode(msg);
-      }
+      if (state === "on" && msg) systemMsgText = msg;
 
+      console.log(systemMsgText);
       /*  appned  */
-      content.appendChild(systemMsgText);
+      content.textContent = systemMsgText;
       container.appendChild(content);
       dialog.appendChild(container);
 
@@ -1594,11 +1617,11 @@
   })();
 
   const scrollBottom = function fixScrollBottom(dom) {
-    dom.scrollTop = dom.scrollHeight;
+    dom.scrollTo(0, dom.scrollHeight);
   };
 
-  const refleshConn = function refleshServerConnect(socket, state) {
-    if (state === "on") {
+  const refreshConn = function refleshServerConnect(socket, state) {
+    if (state === "on" || state === "refresh") {
       connServer.on(socket);
       socketSend(socket).serverSwitch(state);
 
@@ -1607,7 +1630,7 @@
 
     if (state === "off") {
       contentsHTML.drawNotice();
-      contentsHTML.drawSystemAlarm(state);
+      contentsHTML.drawSystemMessage(state);
 
       return;
     }
@@ -1653,6 +1676,8 @@
       document.querySelector(".smpChat__connect__switchInput") ||
       document.querySelector(".smpChat__dialog__switchInput");
 
+    if (state === "refresh") state = "on";
+
     checkbox.checked = state === "on" ? true : false;
   };
 
@@ -1676,7 +1701,7 @@
     }
   };
 
-  const dialogScroll = function loadDialogScroll(socket) {
+  const loadScroll = function loadDialogScroll(socket) {
     const chatView = document.querySelector(".smpChat__dialog__chatView");
     let timer = 0;
 
@@ -1687,20 +1712,26 @@
         if (timer) clearTimeout(timer);
 
         timer = setTimeout(function () {
-          const currentScrollY = e.target.scrollTop;
-          const firstLog = e.target.firstChild;
+          const checkbox =
+            document.querySelector(".smpChat__dialog__switchInput") ||
+            document.querySelector(".smpChat__connect__switchInput");
 
-          if (!firstLog) return;
+          if (checkbox.checked) {
+            const currentScrollY = e.target.scrollTop;
+            const firstLog = e.target.firstChild;
 
-          if (
-            currentScrollY === 0 &&
-            firstLog.className !== "smpChat__dialog__systemBar"
-          ) {
-            const chatSeq = firstLog.dataset.seq;
+            if (!firstLog) return;
 
-            socketSend(socket).prevDialog(chatSeq);
+            if (
+              currentScrollY === 0 &&
+              firstLog.className !== "smpChat__dialog__systemBar"
+            ) {
+              const chatSeq = firstLog.dataset.seq;
 
-            return;
+              socketSend(socket).prevDialog(chatSeq);
+
+              return;
+            }
           }
         }, 200);
       };
