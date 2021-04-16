@@ -173,7 +173,10 @@
             }
             const drawPreviewCount = onceDraw.preview(logs.roomName);
 
-            if (drawPreviewCount === 1) clickPreview(socket, logs.roomName);
+            if (drawPreviewCount === 1) {
+              joinPreview(socket, logs.roomName);
+              leavePreview(socket, logs.roomName);
+            }
 
             if (alarmCount) {
               drawAlarm.refleshPreview(alarmCount.previewCount, logs.roomName);
@@ -204,7 +207,10 @@
 
         const drawPreviewCount = onceDraw.preview(info.roomName);
 
-        if (drawPreviewCount === 1) clickPreview(socket, info.roomName);
+        if (drawPreviewCount === 1) {
+          joinPreview(socket, info.roomName);
+          leavePreview(socket, info.roomName);
+        }
 
         drawAlarm.messagePreview(info.alarm, info.roomName);
 
@@ -273,6 +279,8 @@
         resetHTML.dialog(dialog[0].roomName);
 
         dialog.forEach((logs) => contentsHTML.drawDialog(logs, userId));
+
+        leavePreview(socket, dialog[0].roomName);
 
         scrollBottom(document.querySelector(".smpChat__dialog__chatView"));
 
@@ -1686,7 +1694,7 @@
     checkbox.checked = state === "on" ? true : false;
   };
 
-  const clickPreview = function clickPreviewJoinRoom(socket, roomName) {
+  const joinPreview = function clickPreviewJoinRoom(socket, roomName) {
     const container = document.querySelector(
       `.smpChat__connect__container_${roomName}`
     );
@@ -1694,15 +1702,62 @@
       `.smpChat__connect_previewAlarm_${roomName}`
     );
 
-    container.addEventListener("dblclick", previewClickHandler, false);
+    container.addEventListener("click", previewJoinClickHandler, false);
 
-    function previewClickHandler(e) {
-      alarm.classList.remove("view");
+    function previewJoinClickHandler(e) {
+      if (!e.target.classList.contains("smpChat__connect_previewExit")) {
+        alarm.classList.remove("view");
 
-      alarm.textContent = 0;
+        alarm.textContent = 0;
 
-      socketSend(socket).dialog(roomName);
-      socketSend(socket).observe(roomName);
+        socketSend(socket).dialog(roomName);
+        socketSend(socket).observe(roomName);
+      }
+    }
+  };
+
+  const leavePreview = function clickPreviewLeaveRoom(socket, roomName) {
+    const container = document.querySelector(
+      `.smpChat__connect__container_${roomName}`
+    );
+    const chatView = document.querySelector(
+      `.smpChat__dialog__chatView_${roomName}`
+    );
+    const exitBtn = document.querySelector(
+      `.smpChat__connect_previewExit_${roomName}`
+    );
+
+    if (!exitBtn) return;
+
+    exitBtn.addEventListener("click", previewLeaveClickHandler, false);
+
+    //처음 들어올땐 없었지만
+    //지금은 있다. 
+
+    function previewLeaveClickHandler(e) {
+      if (container && chatView) {
+        if (confirm("채팅방을 나가시겠습니까?")) {
+          container.remove();
+
+          while (chatView.hasChildNodes()) {
+            chatView.removeChild(chatView.firstChild);
+          }
+
+          chatView.classList.remove(`smpChat__dialog__chatView_${roomName}`);
+        }
+        return;
+      }
+
+      if (container && !chatView) {
+        if (confirm("채팅 요청목록을 지우시겠습니까?")) {
+          container.remove();
+
+          return;
+        }
+      }
+
+      // socketSend(socket).dialog(roomName);
+      // socketSend(socket).observe(roomName);
     }
   };
 
@@ -1892,7 +1947,7 @@
 
     previewRaf = requestAnimationFrame(effectAlarmPreview);
 
-    list.addEventListener("dblclick", stopAlarmPreview, false);
+    list.addEventListener("click", stopAlarmPreview, false);
 
     function effectAlarmPreview(timestamp) {
       let interval = 0;
@@ -1931,16 +1986,18 @@
     }
 
     function stopAlarmPreview(e) {
-      const targetDom = eventDelegation(
-        e.target,
-        "smpChat__connect__container"
-      );
+      if (!e.target.classList.contains("smpChat__connect_previewExit")) {
+        const targetDom = eventDelegation(
+          e.target,
+          "smpChat__connect__container"
+        );
 
-      if (targetDom === container) {
-        container.style.outline = "none";
-        container.style.boxShadow = "none";
+        if (targetDom === container) {
+          container.style.outline = "none";
+          container.style.boxShadow = "none";
 
-        cancelAnimationFrame(previewRaf);
+          cancelAnimationFrame(previewRaf);
+        }
       }
 
       function eventDelegation(targetDom, domName) {

@@ -46,8 +46,8 @@
 }
 
 .smpChatIcon {
-  width: 80px;
-  height: 80;
+  max-width: 80px;
+  max-height: 80px;
   position: fixed;
   bottom: 100px;
   right: 5%;
@@ -76,13 +76,13 @@
 }
 
 .smpChat__section {
-  height: 700px;
+  max-height: 700px;
+  height: 100%;
   background-color: var(--smpchat_color-navBar);
   border-radius: 15px;
   display: none;
-
   position: fixed;
-  bottom: 100px;
+  bottom: 50px;
   right: 0;
   z-index: 999999999;
 }
@@ -110,7 +110,8 @@
 
 .smpChat__section__navbar {
   width: 100%;
-  height: 50px;
+  max-height: 50px;
+  height: 100%;
   display: flex;
   align-items: center;
   padding: 15px 5px 15px 20px;
@@ -158,7 +159,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 45px;
+  max-height: 45px;
+  height: 100%;
   width: 100%;
   padding: 10px;
   background-color: var(--smpchat_color-navSubBar);
@@ -250,7 +252,8 @@
 .smpChat__connect__list {
   overflow-y: scroll;
   width: 100%;
-  height: 600px;
+  max-height: 600px;
+  height: 100%;
   scrollbar-color: var(--smpchat_color-dark-white);
   scrollbar-width: none;
 }
@@ -354,7 +357,8 @@
 /* dialog */
 .smpChat__section__dialog {
   width: 340px;
-  height: 645px;
+  max-height: 645px;
+  height: 100%;
   background-color: var(--smpchat_color-light-white);
   overflow: hidden;
 }
@@ -373,7 +377,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 45px;
+  max-height: 45px;
+  min-height: 45px;
+  height: 100%;
   width: 100%;
   padding: 10px;
   background-color: var(--smpchat_color-navSubBar);
