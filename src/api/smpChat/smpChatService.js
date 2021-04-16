@@ -1343,7 +1343,7 @@
         profileImage.src =
           msg.userType === "manager"
             ? "http://localhost:5000/smpChat/image?name=smpark.jpg"
-            : "http://localhost:5000/smpChat/image?name=발리.jpg";
+            : "http://localhost:5000/smpChat/image?name=starProfile.png";
         profileImage.setAttribute("ondragstart", "return false");
       }
 
@@ -1371,7 +1371,9 @@
           observe.src =
             "http://localhost:5000/smpChat/image?name=greyCheck.png";
         } else {
-          const color = localStorage.getItem("smpchat-user-theme");
+          let color = localStorage.getItem("smpchat-user-theme");
+
+          if (!color) color = "blue";
 
           observe.src = `http://localhost:5000/smpChat/image?name=${color}Check.png`;
         }
@@ -1417,7 +1419,8 @@
       /*  set  */
       time.setAttribute("datetime", registerTime);
       container.dataset.seq = seq;
-      profileImage.src = "http://localhost:5000/smpChat/image?name=발리.jpg";
+      profileImage.src =
+        "http://localhost:5000/smpChat/image?name=starProfile.png";
 
       if (image !== null) {
         contentImage.src = `data:image/jpeg;base64,${image}`;
@@ -1493,7 +1496,6 @@
 
       if (state === "on" && msg) systemMsgText = msg;
 
-      console.log(systemMsgText);
       /*  appned  */
       content.textContent = systemMsgText;
       container.appendChild(content);
@@ -1544,6 +1546,7 @@
         /* layout */
         const container = document.createElement("div");
         const id = document.createElement("p");
+        const previewExit = document.createElement("img");
         const previewAlarm = document.createElement("p");
 
         /*  textNode  */
@@ -1555,22 +1558,24 @@
         content.appendChild(messageText);
         container.appendChild(id);
         container.appendChild(time);
+        container.appendChild(previewExit);
         contentsContainer.appendChild(content);
         contentsContainer.appendChild(previewAlarm);
         container.appendChild(contentsContainer);
         connect.appendChild(container);
 
         /*  className & id   */
-
         id.className = "smpChat__connect__id smpChat__userSelect__none";
         time.className = `smpChat__connect__time smpChat__connect__time_${roomName} smpChat__userSelect__none`;
-        content.className = `smpChat__connect__content smpChat__connect__content_${roomName}`;
-        container.className = `smpChat__connect__container smpChat__connect__container_${roomName}`;
+        content.className = `smpChat__connect__content smpChat__connect__content_${roomName} smpChat__userSelect__none`;
+        container.className = `smpChat__connect__container smpChat__connect__container_${roomName} smpChat__userSelect__none`;
+        previewExit.className = `smpChat__connect_previewExit smpChat__connect_previewExit_${roomName} smpChat__userSelect__none`;
         previewAlarm.className = `smpChat__connect_previewAlarm smpChat__connect_previewAlarm_${roomName} smpChat__userSelect__none`;
         contentsContainer.className = "smpChat__connect__contentsContainer";
 
         /*  set  */
         time.setAttribute("datetime", registerTime);
+        previewExit.src = `http://localhost:5000/smpChat/image?name=greyXbtn.png`;
         container.dataset.id = roomName;
 
         /*  function  */
@@ -1689,7 +1694,7 @@
       `.smpChat__connect_previewAlarm_${roomName}`
     );
 
-    container.addEventListener("click", previewClickHandler, false);
+    container.addEventListener("dblclick", previewClickHandler, false);
 
     function previewClickHandler(e) {
       alarm.classList.remove("view");
@@ -1841,7 +1846,9 @@
     function themeClickHandler(e) {
       const theme = e.target;
       const send = document.querySelector(".smpChat__dialog__sendImg");
-      const currColor = localStorage.getItem("smpchat-user-theme");
+      let currColor = localStorage.getItem("smpchat-user-theme");
+
+      if (!currColor) currColor = "blue";
 
       if (currColor === "blue") {
         document.documentElement.setAttribute("smpchat-user-theme", "red");
@@ -1885,7 +1892,7 @@
 
     previewRaf = requestAnimationFrame(effectAlarmPreview);
 
-    list.addEventListener("click", stopAlarmPreview, false);
+    list.addEventListener("dblclick", stopAlarmPreview, false);
 
     function effectAlarmPreview(timestamp) {
       let interval = 0;
@@ -1963,10 +1970,12 @@
       `.smpChat__connect__container_${roomName}`
     );
 
-    clickedDom.classList.remove("effect");
-    clickedDom.classList.add("select");
+    if (clickedDom) {
+      clickedDom.classList.remove("effect");
+      clickedDom.classList.add("select");
 
-    list.insertBefore(clickedDom, list.firstChild);
+      list.insertBefore(clickedDom, list.firstChild);
+    }
   };
 
   const observeChatView = function observeMessageRead(socket, roomName) {
@@ -2012,8 +2021,9 @@
       const srcName = src.substring(index, src.length - 4);
 
       if (srcName === "greyCheck" && !color) {
-        const themeColor = localStorage.getItem("smpchat-user-theme");
+        let themeColor = localStorage.getItem("smpchat-user-theme");
 
+        if (!themeColor) themeColor = "blue";
         dom.src = `http://localhost:5000/smpChat/image?name=${themeColor}Check.png`;
 
         return;

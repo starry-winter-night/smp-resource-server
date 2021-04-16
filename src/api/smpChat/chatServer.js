@@ -78,14 +78,13 @@ const socketSend = function sendSocketContact(socket) {
 
       if (socket.userType === "manager") {
         previewLog = await getPreview(socket);
-        if (!previewLog) return;
-
         clientName = await getClientName(socket);
         alarmCount = await getObserveCount(socket);
       }
 
       let dialog = await loadDialog(socket);
 
+      // console.log(dialog);
       if (dialog.length === 0 || !dialog) dialog = [];
 
       socket.join(socket.userType);
@@ -105,16 +104,22 @@ const socketSend = function sendSocketContact(socket) {
     switch: (state) => {
       socket.emit("switch", state);
     },
-    preview: (log) => {
+    preview: (log, roomName = null) => {
       const PREVIEW_TYPE = "Create";
 
       if (log[0].message === null && log[0].image) {
         log[0].message = "사진을 보냈습니다.";
       }
 
-      socket.userType === "manager"
-        ? socket.emit("preview", log[0], PREVIEW_TYPE)
-        : socket.to("manager").emit("preview", log[0], PREVIEW_TYPE);
+      if (socket.userType === "manager") {
+        socket.emit("preview", log[0], PREVIEW_TYPE);
+      }
+
+      if (socket.userType === "client") {
+        !roomName
+          ? socket.to("manager").emit("preview", log[0], PREVIEW_TYPE)
+          : socket.to(roomName).emit("preview", log[0], PREVIEW_TYPE);
+      }
     },
     dialog: (dialog, roomName) => {
       const PREVIEW_TYPE = "Delete";
@@ -161,7 +166,7 @@ const socketReceive = function receiveSocketContact(socket) {
               );
             });
           }
-        }, 3000);
+        }, 5000);
       });
     },
     switch: () => {
@@ -183,7 +188,23 @@ const socketReceive = function receiveSocketContact(socket) {
 
         if (!msgLog) return;
 
-        socketSend(socket).preview(msgLog);
+        if (socket.userType === "client") {
+          const members = await getRoomMember(socket);
+          if (!members.result) {
+            socketSend(socket).preview(msgLog);
+          }
+
+          if (members.result) {
+            members.result.forEach((id) => {
+              socketSend(socket).preview(msgLog, id);
+            });
+          }
+        }
+
+        if (socket.userType === "manager") {
+          socketSend(socket).preview(msgLog);
+        }
+
         socketSend(socket).message(msgLog);
       });
     },
@@ -197,7 +218,7 @@ const socketReceive = function receiveSocketContact(socket) {
 
         if (dialog.length === 0 || !dialog) return;
 
-        socket.leave(result.prevUserId);
+        socket.leave(result.prevUser);
 
         socket.join(roomName);
 

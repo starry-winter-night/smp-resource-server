@@ -92,23 +92,30 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       for (let i = 0; i < clientLength; i++) {
         const client = smpChatDoc.client[i];
-        if (client.userId === userId) {
-          const chatLogLength =
-            lastDialogNum === null ? client.chatLog.length : lastDialogNum - 1;
-          let getLogNum = chatLogLength - dialogNum;
 
-          if (getLogNum < 0) getLogNum = 0;
+        if (client.serverState === "on" || client.serverState === "refresh") {
+          if (client.userId === userId) {
+            const chatLogLength =
+              lastDialogNum === null
+                ? client.chatLog.length
+                : lastDialogNum - 1;
+            let getLogNum = chatLogLength - dialogNum;
 
-          for (let j = getLogNum; j < chatLogLength; j++) {
-            const chatLog = client.chatLog[j];
+            if (getLogNum < 0) getLogNum = 0;
 
-            if (chatLog.image !== null && chatLog.message === null) {
-              chatLog.image = fs.readFileSync(chatLog.image).toString("base64");
+            for (let j = getLogNum; j < chatLogLength; j++) {
+              const chatLog = client.chatLog[j];
+
+              if (chatLog.image !== null && chatLog.message === null) {
+                chatLog.image = fs
+                  .readFileSync(chatLog.image)
+                  .toString("base64");
+              }
+              dialog.push(chatLog);
             }
-            dialog.push(chatLog);
-          }
 
-          break;
+            break;
+          }
         }
       }
       return dialog;
@@ -116,7 +123,7 @@ export const filterSmpChatData = (smpChatDoc) => {
     availChatClient: (userId) => {
       const member = smpChatDoc.client
         .filter((list) => {
-          if (list.serverState === "on") {
+          if (list.serverState === "on" || list.serverState === "refresh") {
             if (list.roomMember.length === 1) return list.roomMember;
 
             if (list.roomMember.length > 1) {
@@ -138,7 +145,7 @@ export const filterSmpChatData = (smpChatDoc) => {
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           const client = smpChatDoc.client[i];
 
-          if (client.serverState === "on") {
+          if (client.serverState === "on" || client.serverState === "refresh") {
             if (
               client.roomMember.length === 1 ||
               client.roomMember.indexOf(userId) !== -1
@@ -209,7 +216,7 @@ export const filterSmpChatData = (smpChatDoc) => {
       for (let i = 0; i < smpChatDoc.client.length; i++) {
         const client = smpChatDoc.client[i];
 
-        if (client.serverState === "on") {
+        if (client.serverState === "on" || client.serverState === "refresh") {
           if (userType === "manager") {
             if (client.roomMember.length >= 2) {
               const index = client.roomMember.indexOf(userId);
@@ -283,7 +290,6 @@ export const checkDuplicateUser = (() => {
     return { accessUsers, message, result };
   };
 })();
-
 
 export const checkFunctionSpeed = (func, cnt, params) => {
   const startTime = new Date().getTime();
