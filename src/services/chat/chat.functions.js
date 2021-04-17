@@ -42,16 +42,37 @@ export const filterSmpChatData = (smpChatDoc) => {
       return state;
     },
     recentStayRoomOwerId: (userId) => {
-      for (let i = 0; i < smpChatDoc.manager.length; i++) {
-        const managerDoc = smpChatDoc.manager[i];
+      let clientName = null;
 
-        if (managerDoc.managerId === userId) {
-          userId = managerDoc.stayRoomOwnerId;
+      for (let i = 0; i < smpChatDoc.manager.length; i++) {
+        const manager = smpChatDoc.manager[i];
+
+        if (manager.managerId === userId) {
+          clientName = manager.stayRoomOwnerId;
 
           break;
         }
       }
-      return userId;
+
+      if (clientName) {
+        for (let i = 0; i < smpChatDoc.client.length; i++) {
+          const client = smpChatDoc.client[i];
+
+          if (client.userId === clientName) {
+            const index = client.roomMember.indexOf(userId);
+
+            if (index !== -1) return clientName;
+
+            if (index === -1) clientName = null;
+
+            break;
+          }
+        }
+
+        return clientName;
+      }
+
+      return clientName;
     },
     recentSeq: (userId) => {
       let recentSeq = null;
@@ -68,17 +89,32 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       return recentSeq;
     },
-    recentChatLogs: (userList) => {
+    recentChatLogs: (userList, manager = null) => {
       const recentChatLogs = [];
 
       for (let i = 0; i < userList.length; i++) {
         for (let j = 0; j < smpChatDoc.client.length; j++) {
-          const userId = smpChatDoc.client[j].userId;
+          const client = smpChatDoc.client[j];
+          const userId = client.userId;
 
           if (userList[i] === userId) {
-            const chatLog = smpChatDoc.client[j].chatLog;
+            const chatLog = client.chatLog;
+            const recentLog = chatLog[chatLog.length - 1];
 
-            recentChatLogs.push(chatLog[chatLog.length - 1]);
+            if (!manager) {
+              recentChatLogs.push(recentLog);
+            }
+
+            if (manager) {
+              const members = client.roomMember;
+              const index = members.indexOf(manager);
+
+              if (index === -1) {
+                if (!recentLog.observe) recentChatLogs.push(recentLog);
+              }
+
+              if (index !== -1) recentChatLogs.push(recentLog);
+            }
 
             break;
           }
@@ -88,17 +124,16 @@ export const filterSmpChatData = (smpChatDoc) => {
     },
     chatLog: (userId, dialogNum, lastDialogNum) => {
       let dialog = [];
-      let clientLength = smpChatDoc.client.length;
 
-      for (let i = 0; i < clientLength; i++) {
+      for (let i = 0; i < smpChatDoc.client.length; i++) {
         const client = smpChatDoc.client[i];
+        const state = client.serverState;
 
-        if (client.serverState === "on" || client.serverState === "refresh") {
+        if (state === "on" || state === "refresh") {
           if (client.userId === userId) {
-            const chatLogLength =
-              lastDialogNum === null
-                ? client.chatLog.length
-                : lastDialogNum - 1;
+            const chatLogLength = !lastDialogNum
+              ? client.chatLog.length
+              : lastDialogNum - 1;
             let getLogNum = chatLogLength - dialogNum;
 
             if (getLogNum < 0) getLogNum = 0;
@@ -106,7 +141,7 @@ export const filterSmpChatData = (smpChatDoc) => {
             for (let j = getLogNum; j < chatLogLength; j++) {
               const chatLog = client.chatLog[j];
 
-              if (chatLog.image !== null && chatLog.message === null) {
+              if (chatLog.image && !chatLog.message) {
                 chatLog.image = fs
                   .readFileSync(chatLog.image)
                   .toString("base64");
@@ -118,6 +153,7 @@ export const filterSmpChatData = (smpChatDoc) => {
           }
         }
       }
+
       return dialog;
     },
     availChatClient: (userId) => {

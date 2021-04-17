@@ -7,6 +7,7 @@ import {
   setServerState,
   getServerState,
   joinRoomMember,
+  leaveRoomMember,
   getPreview,
   saveMessage,
   loadDialog,
@@ -62,7 +63,9 @@ smpChatIo.on("connection", async (socket) => {
 
   socketReceive(socket).message();
 
-  socketReceive(socket).dialog();
+  socketReceive(socket).join();
+
+  socketReceive(socket).leave();
 
   socketReceive(socket).prevDialog();
 
@@ -84,12 +87,11 @@ const socketSend = function sendSocketContact(socket) {
 
       let dialog = await loadDialog(socket);
 
-      // console.log(dialog);
       if (dialog.length === 0 || !dialog) dialog = [];
 
       socket.join(socket.userType);
       socket.join(socket.userId);
-      socket.join(clientName);
+      if (clientName) socket.join(clientName);
 
       socket.emit("start", { dialog, previewLog, alarmCount });
     },
@@ -121,13 +123,14 @@ const socketSend = function sendSocketContact(socket) {
           : socket.to(roomName).emit("preview", log[0], PREVIEW_TYPE);
       }
     },
-    dialog: (dialog, roomName) => {
+    join: (dialog, roomName) => {
       const PREVIEW_TYPE = "Delete";
 
       socket.to("manager").emit("preview", roomName, PREVIEW_TYPE);
 
-      socket.emit("dialog", dialog);
+      socket.emit("join", dialog);
     },
+    leave: (roomName) => {},
     prevDialog: (log) => {
       socket.emit("prevDialog", log);
     },
@@ -208,8 +211,8 @@ const socketReceive = function receiveSocketContact(socket) {
         socketSend(socket).message(msgLog);
       });
     },
-    dialog: () => {
-      socket.on("dialog", async (roomName) => {
+    join: () => {
+      socket.on("join", async (roomName) => {
         const result = await joinRoomMember(socket, roomName);
 
         if (result.state === "chatting") return;
@@ -222,7 +225,16 @@ const socketReceive = function receiveSocketContact(socket) {
 
         socket.join(roomName);
 
-        socketSend(socket).dialog(dialog, roomName);
+        socketSend(socket).join(dialog, roomName);
+      });
+    },
+    leave: () => {
+      socket.on("leave", async (roomName) => {
+        const result = await leaveRoomMember(socket, roomName);
+
+        if (!result) return;
+
+        socket.leave(roomName);
       });
     },
     prevDialog: () => {

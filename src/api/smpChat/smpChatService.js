@@ -19,17 +19,13 @@
           try {
             if (!argCheck(this.args)) return;
 
-            const res = await fetch(serverURL(this.args));
-
-            if (!res.ok) SmpChatError.errHandle(res.statusText);
-
-            const data = await res.json();
+            const data = await severConn(this.args);
 
             resetHTML.sectionIcon(this.args);
 
             drawChatHTML(this.args, data.type);
 
-            const socket = await socketURL(this.args);
+            const socket = await socketConn(this.args);
 
             changeSwitch(data.state);
 
@@ -55,7 +51,7 @@
 
             socketReceive(socket).preview(userId);
 
-            socketReceive(socket).dialog(userId);
+            socketReceive(socket).join(userId);
 
             socketReceive(socket).prevDialog(userId);
 
@@ -109,7 +105,7 @@
       btnSwitch,
       start,
       preview,
-      dialog,
+      join,
       prevDialog,
       message,
       systemMessage,
@@ -168,11 +164,10 @@
 
             const result = checkEffectPreview(logs.roomName);
 
-            if (!result.select && !result.effect && !logs.observe) {
-              alarmPreview(logs.roomName);
-            }
+            alarmPreview(result, logs);
 
             joinPreview(socket, logs.roomName);
+
             leavePreview(socket, logs.roomName);
 
             if (alarmCount) {
@@ -200,9 +195,7 @@
 
         const result = checkEffectPreview(info.roomName);
 
-        if (!result.select && !result.effect && !result.observe) {
-          alarmPreview(info.roomName);
-        }
+        alarmPreview(result, info);
 
         joinPreview(socket, info.roomName);
 
@@ -269,8 +262,8 @@
         chatView.remove();
       }
     }
-    function dialog(userId) {
-      socket.on("dialog", (dialog) => {
+    function join(userId) {
+      socket.on("join", (dialog) => {
         resetHTML.dialog(dialog[0].roomName);
 
         dialog.forEach((logs) => contentsHTML.drawDialog(logs, userId));
@@ -365,7 +358,9 @@
 
       message: (msg, img) => socket.emit("message", msg, img),
 
-      dialog: (userId) => socket.emit("dialog", userId),
+      join: (userId) => socket.emit("join", userId),
+
+      leave: (roomName) => socket.emit("leave", roomName),
 
       prevDialog: (seq) => socket.emit("prevDialog", seq),
 
@@ -404,11 +399,28 @@
     return true;
   };
 
-  const serverURL = function connectServerURL({ clientId, userId }) {
-    return `http://localhost:5000/smpChat?clientId=${clientId}&userId=${userId}`;
+  const severConn = async function getUserDataConnectingServer({
+    clientId,
+    userId,
+  }) {
+    const res = await fetch(serverURL(clientId, userId));
+
+    if (!res.ok) {
+      SmpChatError.errHandle(res.statusText);
+
+      return;
+    }
+
+    const data = await res.json();
+
+    return data;
+
+    function serverURL(clientId, userId) {
+      return `http://localhost:5000/smpChat?clientId=${clientId}&userId=${userId}`;
+    }
   };
 
-  const socketURL = function connectSocketURL({ clientId, apiKey, userId }) {
+  const socketConn = function connectSocketURL({ clientId, apiKey, userId }) {
     return io(`ws://localhost:7000/${clientId}`, {
       reconnectionDelayMax: 10000,
       autoConnect: false,
@@ -1714,7 +1726,7 @@
 
         alarm.textContent = 0;
 
-        socketSend(socket).dialog(roomName);
+        socketSend(socket).join(roomName);
         socketSend(socket).observe(roomName);
       };
     }
@@ -1728,11 +1740,11 @@
       if (!exitBtn) return;
       exitBtn.addEventListener(
         "click",
-        previewLeaveClickHandler(roomName, false)
+        previewLeaveClickHandler(socket, roomName, false)
       );
     };
 
-    function previewLeaveClickHandler(roomName) {
+    function previewLeaveClickHandler(socket, roomName) {
       return (e) => {
         e.stopImmediatePropagation();
 
@@ -1752,6 +1764,8 @@
             }
 
             chatView.classList.remove(`smpChat__dialog__chatView_${roomName}`);
+
+            socketSend(socket).leave(roomName);
           }
           return;
         }
@@ -1764,9 +1778,6 @@
           }
         }
       };
-
-      // socketSend(socket).dialog(roomName);
-      // socketSend(socket).observe(roomName);
     }
   })();
 
@@ -1807,15 +1818,17 @@
     }
   };
 
-  const sendImage = function sendImageProcess(socket) {
-    const input = document.querySelector(".smpChat__dialog__addInput");
-    const chatView = document.querySelector(".smpChat__dialog__chatView");
+  const sendImage = (function sendImageProcess() {
+    return (socket) => {
+      const input = document.querySelector(".smpChat__dialog__addInput");
+      const chatView = document.querySelector(".smpChat__dialog__chatView");
 
-    input.addEventListener("change", plusClickHandler(socket), false);
+      input.addEventListener("change", plusClickHandler(socket), false);
 
-    chatView.addEventListener("dragover", overViewHandler(chatView), false);
-    chatView.addEventListener("dragleave", leaveViewHandler(chatView), false);
-    chatView.addEventListener("drop", dropHandler(chatView, socket), false);
+      chatView.addEventListener("dragover", overViewHandler(chatView), false);
+      chatView.addEventListener("dragleave", leaveViewHandler(chatView), false);
+      chatView.addEventListener("drop", dropHandler(chatView, socket), false);
+    };
 
     function plusClickHandler(socket) {
       return (e) => {
@@ -1891,7 +1904,7 @@
         sendImageHandler(files[0], socket);
       };
     }
-  };
+  })();
 
   const changeTheme = function changeSmpChatTheme() {
     const theme = document.querySelector(".smpChat__section__theme");
@@ -1942,87 +1955,103 @@
     }
   };
 
-  const alarmPreview = function alarmNewPreview(roomName) {
-    const container = document.querySelector(
-      `.smpChat__connect__container_${roomName}`
-    );
-    const list = document.querySelector(".smpChat__connect__list");
-    let previewRaf = null;
+  const alarmPreview = (function alarmNewPreview() {
     let opacity = 0;
     let startTime = 0;
     let opacitySwitch = true;
+    let previewRaf = null;
 
-    container.classList.add("effect");
-
-    previewRaf = requestAnimationFrame(effectAlarmPreview);
-
-    list.addEventListener("click", stopAlarmPreview, true);
-
-    function effectAlarmPreview(timestamp) {
-      let interval = 0;
-
-      if (startTime === 0) startTime = timestamp;
-
-      interval = (timestamp - startTime) / 10;
-
-      if (interval > 10) {
-        opacity = opacitySwitch ? opacity + 0.1 : opacity - 0.1;
-
-        if (opacity === 1) opacitySwitch = false;
-
-        if (opacity === 0) opacitySwitch = true;
-
-        opacity = Number(opacity.toFixed(1));
-
-        applyPreviewColor();
-
-        startTime = timestamp;
-      }
-
-      previewRaf = requestAnimationFrame(effectAlarmPreview);
-    }
-
-    function applyPreviewColor() {
-      container.style.outline = `3px groove ${getRootColorRGB()}, ${opacity})`;
-      container.style.boxShadow = `inset 0 2px 45px ${getRootColorRGB()}, ${opacity})`;
-    }
-
-    function getRootColorRGB() {
-      const domStyle = getComputedStyle(document.documentElement);
-      const color = domStyle.getPropertyValue("--smpchat_color_navSubBarRGB");
-
-      return color.substring(0, color.length - 1);
-    }
-
-    function stopAlarmPreview(e) {
-      if (!e.target.classList.contains("smpChat__connect_previewExit")) {
-        const targetDom = eventDelegation(
-          e.target,
-          "smpChat__connect__container"
+    return (check, { roomName, observe }) => {
+      if (!check.select && !check.effect && !observe) {
+        const container = document.querySelector(
+          `.smpChat__connect__container_${roomName}`
         );
 
-        if (targetDom === container) {
-          container.style.outline = "none";
-          container.style.boxShadow = "none";
+        container.classList.add("effect");
 
-          cancelAnimationFrame(previewRaf);
-        }
+        requestAnimationFrame(effectAlarmPreview(container, previewRaf));
       }
 
-      function eventDelegation(targetDom, domName) {
-        while (!targetDom.classList.contains(domName)) {
-          targetDom = targetDom.parentNode;
+      function effectAlarmPreview(container, raf) {
+        return (timestamp) => {
+          let interval = 0;
 
-          if (targetDom.nodeName === "SECTION") {
-            targetDom = null;
-            return;
+          if (startTime === 0) startTime = timestamp;
+
+          interval = (timestamp - startTime) / 10;
+
+          if (interval > 10) {
+            opacity = opacitySwitch ? opacity + 0.1 : opacity - 0.1;
+
+            if (opacity === 1) opacitySwitch = false;
+
+            if (opacity === 0) opacitySwitch = true;
+
+            opacity = Number(opacity.toFixed(1));
+
+            applyPreviewColor(container);
+
+            startTime = timestamp;
           }
-        }
 
-        return targetDom;
+          previewRaf = requestAnimationFrame(
+            effectAlarmPreview(container, raf)
+          );
+
+          const list = document.querySelector(".smpChat__connect__list");
+
+          list.addEventListener(
+            "click",
+            stopAlarmPreview(container, previewRaf),
+            true
+          );
+        };
       }
-    }
-  };
+
+      function applyPreviewColor(container) {
+        container.style.outline = `3px groove ${getRootColorRGB()}, ${opacity})`;
+        container.style.boxShadow = `inset 0 2px 45px ${getRootColorRGB()}, ${opacity})`;
+      }
+
+      function getRootColorRGB() {
+        const domStyle = getComputedStyle(document.documentElement);
+        const color = domStyle.getPropertyValue("--smpchat_color_navSubBarRGB");
+
+        return color.substring(0, color.length - 1);
+      }
+
+      function stopAlarmPreview(container, raf) {
+        return (e) => {
+          if (!e.target.classList.contains("smpChat__connect_previewExit")) {
+            const targetDom = eventDelegation(
+              e.target,
+              "smpChat__connect__container"
+            );
+
+            if (targetDom === container) {
+              container.style.outline = "none";
+              container.style.boxShadow = "none";
+
+              cancelAnimationFrame(raf);
+            }
+          }
+        };
+
+        function eventDelegation(targetDom, domName) {
+          while (!targetDom.classList.contains(domName)) {
+            targetDom = targetDom.parentNode;
+
+            if (targetDom.nodeName === "SECTION") {
+              targetDom = null;
+              return;
+            }
+          }
+
+          return targetDom;
+        }
+      }
+    };
+  })();
 
   const effectSelect = function effectPreviewSelect(roomName) {
     if (!roomName) return;

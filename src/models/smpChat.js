@@ -102,13 +102,23 @@ smpChatSchema.statics.updateByObserve = function (_id, clientName, observe) {
 smpChatSchema.statics.updateByRoomMember = function (
   _id,
   clientId,
-  managerId = null
+  managerId,
+  action
 ) {
-  const userId = managerId === null ? clientId : managerId;
-  return this.updateOne(
-    { _id, "client.userId": clientId },
-    { $addToSet: { "client.$.roomMember": userId } }
-  );
+  const userId = !managerId ? clientId : managerId;
+
+  if (action === "Delete") {
+    return this.updateOne(
+      { _id, "client.userId": clientId },
+      { $pull: { "client.$.roomMember": userId } }
+    );
+  }
+  if (action === "Add") {
+    return this.updateOne(
+      { _id, "client.userId": clientId },
+      { $addToSet: { "client.$.roomMember": userId } }
+    );
+  }
 };
 
 smpChatSchema.statics.updateByMessage = function (_id, clientName, chatLog) {

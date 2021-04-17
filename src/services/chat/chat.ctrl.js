@@ -50,7 +50,7 @@ export const judgeUserType = async (clientId, userId) => {
   return userType;
 };
 
-export const registerManager = async ({clientId, userId, userType}) => {
+export const registerManager = async ({ clientId, userId, userType }) => {
   const getIds = await SmpChat.findByUserId(clientId, userId, userType);
 
   if (getIds === null) {
@@ -78,7 +78,7 @@ export const verifyManagerInfo = async (clientId, apiKey) => {
   return { result: true };
 };
 
-export const getServerState = async ({clientId, userId, userType}) => {
+export const getServerState = async ({ clientId, userId, userType }) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
@@ -159,35 +159,45 @@ export const saveMessage = async (
 
 export const joinRoomMember = async (
   { clientId, userId, userType },
-  clientName = null
+  roomName = null
 ) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  if (userType === "client" && clientName === null) {
+  if (userType === "client" && roomName === null) {
     const userList = filterSmpChatData(smpChat).availChatClient(userId);
 
     if (userList.length === 1 && userList[0] === userId) return;
 
-    await SmpChat.updateByRoomMember(smpChat._id, userId);
+    await SmpChat.updateByRoomMember(smpChat._id, userId, null, "Add");
   }
 
-  if (userType === "manager" && clientName) {
-    const state = filterSmpChatData(smpChat).checkRoomMember(
-      userId,
-      clientName
-    );
+  if (userType === "manager" && roomName) {
+    const state = filterSmpChatData(smpChat).checkRoomMember(userId, roomName);
 
     if (state === "chatting") return { state };
 
     const prevUser = filterSmpChatData(smpChat).recentStayRoomOwerId(userId);
 
-    await SmpChat.updateByStayRoomOwnerId(smpChat._id, clientName, userId);
+    await SmpChat.updateByStayRoomOwnerId(smpChat._id, roomName, userId);
 
-    await SmpChat.updateByRoomMember(smpChat._id, clientName, userId);
+    await SmpChat.updateByRoomMember(smpChat._id, roomName, userId, "Add");
 
     return { prevUser };
+  }
+};
+
+export const leaveRoomMember = async (
+  { clientId, userId, userType },
+  roomName
+) => {
+  const smpChat = await SmpChat.findByClientId(clientId);
+
+  if (!smpChat) return false;
+
+  if (userType === "manager") {
+    await SmpChat.updateByRoomMember(smpChat._id, roomName, userId, "Delete");
   }
 };
 
@@ -200,7 +210,9 @@ export const getPreview = async ({ clientId, userId }) => {
 
   if (userList.length === 0 || !userList) return false;
 
-  const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList);
+
+
+  const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList, userId);
 
   if (chatLogs.length === 0) return;
 
@@ -208,6 +220,8 @@ export const getPreview = async ({ clientId, userId }) => {
     chatLogs[0].image = null;
     chatLogs[0].message = "사진을 보냈습니다.";
   }
+
+
 
   return chatLogs;
 };
@@ -224,7 +238,7 @@ export const loadDialog = async (
     userType === "manager"
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
-
+      
   if (clientName) {
     const dialogNum = 15;
     const lastDialogNum = seq;
