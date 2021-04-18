@@ -10,7 +10,7 @@
   --smpchat_color-white-grey: #eeeeee;
   --smpchat_color_navSubBarRGB: rgba(33, 150, 243);
   --smpchat_color-navSubBar: #2196f3;
-  --smpchat_color-light-red: #ff0084;
+  --smpchat_color-alarm: #ff0084;
   --smpchat_color-navBar: #0069c0;
   --smpchat_color-light-yellow: #fff7d1;
   --smpchat_color-orange: #f35f2c;
@@ -29,6 +29,7 @@
   --smpchat_color-white-grey: #eeeeee;
   --smpchat_color_navSubBarRGB: rgba(255, 0, 132);
   --smpchat_color-navSubBar: #ff0084;
+  --smpchat_color-alarm: #2196f3;
   --smpchat_color-navBar: #c60058;
   --smpchat_color-light-yellow: #fff7d1;
   --smpchat_color-orange: #f35f2c;
@@ -72,7 +73,7 @@
   border-radius: 50%;
   padding: 1px 5px;
   color: var(--smpchat_color-light-white);
-  background-color: var(--smpchat_color-light-red);
+  background-color: var(--smpchat_color-alarm);
 }
 
 .smpChat__section {
@@ -351,7 +352,7 @@
   border-radius: 50%;
   padding: 1px 5px;
   color: var(--smpchat_color-light-white);
-  background-color: var(--smpchat_color-light-red);
+  background-color: var(--smpchat_color-alarm);
 }
 
 /* dialog */

@@ -190,14 +190,27 @@ export const joinRoomMember = async (
 
 export const leaveRoomMember = async (
   { clientId, userId, userType },
-  roomName
+  members
 ) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return false;
 
   if (userType === "manager") {
-    await SmpChat.updateByRoomMember(smpChat._id, roomName, userId, "Delete");
+    if (typeof members === "object") {
+      members.forEach(async (roomName) => {
+        await SmpChat.updateByRoomMember(
+          smpChat._id,
+          roomName,
+          userId,
+          "Delete"
+        );
+      });
+    }
+
+    if (typeof members === "string") {
+      await SmpChat.updateByRoomMember(smpChat._id, members, userId, "Delete");
+    }
   }
 };
 
@@ -210,8 +223,6 @@ export const getPreview = async ({ clientId, userId }) => {
 
   if (userList.length === 0 || !userList) return false;
 
-
-
   const chatLogs = filterSmpChatData(smpChat).recentChatLogs(userList, userId);
 
   if (chatLogs.length === 0) return;
@@ -220,8 +231,6 @@ export const getPreview = async ({ clientId, userId }) => {
     chatLogs[0].image = null;
     chatLogs[0].message = "사진을 보냈습니다.";
   }
-
-
 
   return chatLogs;
 };
@@ -238,7 +247,7 @@ export const loadDialog = async (
     userType === "manager"
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
-      
+
   if (clientName) {
     const dialogNum = 15;
     const lastDialogNum = seq;
@@ -292,12 +301,19 @@ export const getObserveCount = async ({ clientId, userId }) => {
   return alarmCount;
 };
 
-export const getRoomMember = async ({ clientId, userId, userType }) => {
+export const getRoomMember = async (
+  { clientId, userId, userType },
+  action = null
+) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  const member = filterSmpChatData(smpChat).getRoomMember(userId, userType);
+  const member = filterSmpChatData(smpChat).getRoomMember(
+    userId,
+    userType,
+    action
+  );
 
   if (member.length === 0) return { result: false };
 

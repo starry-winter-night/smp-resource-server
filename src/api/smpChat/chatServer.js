@@ -52,6 +52,7 @@ smpChatIo.on("connection", async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
 
   // console.log(io.engine.clientsCount);
+  
 
   socketSend(socket).start();
 
@@ -91,6 +92,7 @@ const socketSend = function sendSocketContact(socket) {
 
       socket.join(socket.userType);
       socket.join(socket.userId);
+
       if (clientName) socket.join(clientName);
 
       socket.emit("start", { dialog, previewLog, alarmCount });
@@ -130,7 +132,6 @@ const socketSend = function sendSocketContact(socket) {
 
       socket.emit("join", dialog);
     },
-    leave: (roomName) => {},
     prevDialog: (log) => {
       socket.emit("prevDialog", log);
     },
@@ -145,31 +146,42 @@ const socketReceive = function receiveSocketContact(socket) {
     disconnect: () => {
       socket.on("disconnect", async (reason) => {
         checkDuplicateUser(socket, socket.users);
+
+        if (reason !== "transport close") {
+          const members = await getRoomMember(socket, "close");
+
+          await leaveRoomMember(socket, members.result);
+        }
       });
     },
     disconnecting: () => {
       socket.on("disconnecting", async (reason) => {
         checkDuplicateUser(socket, socket.users);
-        await setServerState(socket, "refresh");
 
-        setTimeout(async () => {
-          const state = await getServerState(socket);
+        if (reason === "transport close") {
+          await setServerState(socket, "refresh");
 
-          if (state === "refresh") {
-            await setServerState(socket, "off");
+          setTimeout(async () => {
+            const state = await getServerState(socket);
 
-            const members = await getRoomMember(socket);
+            if (state === "refresh") {
+              await setServerState(socket, "off");
 
-            if (!members.result) return;
+              const members = await getRoomMember(socket);
 
-            members.result.forEach((memberId) => {
-              socketSend(socket).systemMessage(
-                `${socket.userId}님의 서버가 종료되었습니다.`,
-                memberId
-              );
-            });
-          }
-        }, 5000);
+              if (!members.result) return;
+
+              members.result.forEach((memberId) => {
+                socketSend(socket).systemMessage(
+                  `${socket.userId}님의 서버가 종료되었습니다.`,
+                  memberId
+                );
+              });
+
+              await leaveRoomMember(socket, members.result);
+            }
+          }, 5000);
+        }
       });
     },
     switch: () => {
@@ -193,6 +205,7 @@ const socketReceive = function receiveSocketContact(socket) {
 
         if (socket.userType === "client") {
           const members = await getRoomMember(socket);
+
           if (!members.result) {
             socketSend(socket).preview(msgLog);
           }

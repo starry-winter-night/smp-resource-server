@@ -127,30 +127,25 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       for (let i = 0; i < smpChatDoc.client.length; i++) {
         const client = smpChatDoc.client[i];
-        const state = client.serverState;
 
-        if (state === "on" || state === "refresh") {
-          if (client.userId === userId) {
-            const chatLogLength = !lastDialogNum
-              ? client.chatLog.length
-              : lastDialogNum - 1;
-            let getLogNum = chatLogLength - dialogNum;
+        if (client.userId === userId) {
+          const chatLogLength = !lastDialogNum
+            ? client.chatLog.length
+            : lastDialogNum - 1;
+          let getLogNum = chatLogLength - dialogNum;
 
-            if (getLogNum < 0) getLogNum = 0;
+          if (getLogNum < 0) getLogNum = 0;
 
-            for (let j = getLogNum; j < chatLogLength; j++) {
-              const chatLog = client.chatLog[j];
+          for (let j = getLogNum; j < chatLogLength; j++) {
+            const chatLog = client.chatLog[j];
 
-              if (chatLog.image && !chatLog.message) {
-                chatLog.image = fs
-                  .readFileSync(chatLog.image)
-                  .toString("base64");
-              }
-              dialog.push(chatLog);
+            if (chatLog.image && !chatLog.message) {
+              chatLog.image = fs.readFileSync(chatLog.image).toString("base64");
             }
-
-            break;
+            dialog.push(chatLog);
           }
+
+          break;
         }
       }
 
@@ -234,7 +229,7 @@ export const filterSmpChatData = (smpChatDoc) => {
         const client = smpChatDoc.client[i];
 
         if (client.userId === roomName) {
-          if (client.roomMember.length >= 2) {
+          if (client.roomMember.length > 1) {
             const index = client.roomMember.indexOf(userId);
 
             if (index === -1) {
@@ -247,39 +242,59 @@ export const filterSmpChatData = (smpChatDoc) => {
       }
       return state;
     },
-    getRoomMember: (userId, userType) => {
-      let clientMembers = [];
+    getRoomMember: (userId, userType, action) => {
+      const clientMembers = [];
+
       for (let i = 0; i < smpChatDoc.client.length; i++) {
         const client = smpChatDoc.client[i];
+        const roomMember = client.roomMember;
 
-        if (client.serverState === "on" || client.serverState === "refresh") {
-          if (userType === "manager") {
-            if (client.roomMember.length >= 2) {
-              const index = client.roomMember.indexOf(userId);
-              if (index !== -1) {
-                client.roomMember.forEach((member) => {
-                  if (member !== userId) {
-                    clientMembers.push(member);
-                  }
-                });
-              }
+        if (userType === "manager") {
+          if (action === "close") {
+            findClientMember(roomMember, userId);
+          }
+
+          if (!action) {
+            const state = client.serverState;
+
+            if (state === "on" || state === "refresh") {
+              findClientMember(roomMember, userId);
             }
           }
         }
         if (userType === "client") {
           if (client.userId === userId) {
-            if (client.roomMember.length >= 2) {
-              client.roomMember.forEach((member) => {
+            findClientMember(roomMember, userId);
+          }
+        }
+      }
+
+      return clientMembers;
+
+      function findClientMember(roomMember, userId) {
+        if (roomMember.length > 1) {
+          if (userType === "manager") {
+            const index = roomMember.indexOf(userId);
+            if (index !== -1) {
+              roomMember.forEach((member) => {
                 if (member !== userId) {
                   clientMembers.push(member);
                 }
               });
             }
           }
-        }
-      }
 
-      return clientMembers;
+          if (userType === "client") {
+            roomMember.forEach((member) => {
+              if (member !== userId) {
+                clientMembers.push(member);
+              }
+            });
+          }
+        }
+
+        return clientMembers;
+      }
     },
   };
 };

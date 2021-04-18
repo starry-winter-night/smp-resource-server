@@ -1643,6 +1643,7 @@
   const refreshConn = function refleshServerConnect(socket, state) {
     if (state === "on" || state === "refresh") {
       connServer.on(socket);
+
       socketSend(socket).serverSwitch(state);
 
       return;
@@ -1656,24 +1657,36 @@
     }
   };
 
-  const clickConn = function connectServer(socket) {
-    const checkbox =
-      document.querySelector(`.smpChat__connect__switchInput`) ||
-      document.querySelector(`.smpChat__dialog__switchInput`);
+  const clickConn = (function connectServer() {
+    return (socket) => {
+      const checkbox =
+        document.querySelector(`.smpChat__connect__switchInput`) ||
+        document.querySelector(`.smpChat__dialog__switchInput`);
 
-    if (!checkbox) return;
+      if (!checkbox) return;
 
-    checkbox.addEventListener(
-      "click",
-      connectServerBtnClickHandler(checkbox, socket),
-      false
-    );
+      checkbox.addEventListener(
+        "click",
+        connectServerBtnClickHandler(checkbox, socket),
+        false
+      );
+    };
 
     function connectServerBtnClickHandler(checkbox, socket) {
       return () => {
         const state = checkbox.checked ? "on" : "off";
 
-        if (!checkbox.checked) return socketSend(socket).serverSwitch(state);
+        if (!checkbox.checked) {
+          socketSend(socket).serverSwitch(state);
+
+          const list = document.querySelector(".smpChat__connect__list");
+
+          while (list.hasChildNodes()) {
+            list.removeChild(list.firstChild);
+          }
+
+          return;
+        }
 
         connServer.on(socket);
 
@@ -1682,7 +1695,7 @@
         return;
       };
     }
-  };
+  })();
 
   const connServer = (function turnOnOffServer() {
     return {
@@ -1781,13 +1794,19 @@
     }
   })();
 
-  const loadScroll = function loadDialogScroll(socket) {
-    const chatView = document.querySelector(".smpChat__dialog__chatView");
-    let timer = 0;
+  const loadScroll = (function loadDialogScroll() {
+    return (socket) => {
+      const chatView = document.querySelector(".smpChat__dialog__chatView");
+      let timer = 0;
 
-    chatView.addEventListener("scroll", loadDialogScrollHandler(socket), false);
+      chatView.addEventListener(
+        "scroll",
+        loadDialogScrollHandler(socket, timer),
+        false
+      );
+    };
 
-    function loadDialogScrollHandler(socket) {
+    function loadDialogScrollHandler(socket, timer) {
       return (e) => {
         if (timer) clearTimeout(timer);
 
@@ -1816,7 +1835,7 @@
         }, 200);
       };
     }
-  };
+  })();
 
   const sendImage = (function sendImageProcess() {
     return (socket) => {
@@ -1906,19 +1925,21 @@
     }
   })();
 
-  const changeTheme = function changeSmpChatTheme() {
-    const theme = document.querySelector(".smpChat__section__theme");
-    let themeColor = localStorage.getItem("smpchat-user-theme");
+  const changeTheme = (function changeSmpChatTheme() {
+    return () => {
+      const theme = document.querySelector(".smpChat__section__theme");
+      let themeColor = localStorage.getItem("smpchat-user-theme");
 
-    if (!themeColor) themeColor = "blue";
+      if (!themeColor) themeColor = "blue";
 
-    if (themeColor === "red") {
-      theme.src = "http://localhost:5000/smpChat/image?name=blueFlower.png";
-    }
+      if (themeColor === "red") {
+        theme.src = "http://localhost:5000/smpChat/image?name=blueFlower.png";
+      }
 
-    document.documentElement.setAttribute("smpchat-user-theme", themeColor);
+      document.documentElement.setAttribute("smpchat-user-theme", themeColor);
 
-    theme.addEventListener("click", themeClickHandler, false);
+      theme.addEventListener("click", themeClickHandler, false);
+    };
 
     function themeClickHandler(e) {
       const theme = e.target;
@@ -1953,62 +1974,50 @@
         return;
       }
     }
-  };
+  })();
 
-  const alarmPreview = (function alarmNewPreview() {
-    let opacity = 0;
-    let startTime = 0;
-    let opacitySwitch = true;
-    let previewRaf = null;
+  const alarmPreview = function alarmNewPreview(check, { roomName, observe }) {
+    if (!check.select && !check.effect && !observe) {
+      const container = document.querySelector(
+        `.smpChat__connect__container_${roomName}`
+      );
+      const list = document.querySelector(".smpChat__connect__list");
+      let previewRaf = null;
+      let opacity = 0;
+      let startTime = 0;
+      let opacitySwitch = true;
 
-    return (check, { roomName, observe }) => {
-      if (!check.select && !check.effect && !observe) {
-        const container = document.querySelector(
-          `.smpChat__connect__container_${roomName}`
-        );
+      container.classList.add("effect");
 
-        container.classList.add("effect");
+      previewRaf = requestAnimationFrame(effectAlarmPreview);
 
-        requestAnimationFrame(effectAlarmPreview(container, previewRaf));
+      list.addEventListener("click", stopAlarmPreview, true);
+
+      function effectAlarmPreview(timestamp) {
+        let interval = 0;
+
+        if (startTime === 0) startTime = timestamp;
+
+        interval = (timestamp - startTime) / 10;
+
+        if (interval > 10) {
+          opacity = opacitySwitch ? opacity + 0.1 : opacity - 0.1;
+
+          if (opacity === 1) opacitySwitch = false;
+
+          if (opacity === 0) opacitySwitch = true;
+
+          opacity = Number(opacity.toFixed(1));
+
+          applyPreviewColor();
+
+          startTime = timestamp;
+        }
+
+        previewRaf = requestAnimationFrame(effectAlarmPreview);
       }
 
-      function effectAlarmPreview(container, raf) {
-        return (timestamp) => {
-          let interval = 0;
-
-          if (startTime === 0) startTime = timestamp;
-
-          interval = (timestamp - startTime) / 10;
-
-          if (interval > 10) {
-            opacity = opacitySwitch ? opacity + 0.1 : opacity - 0.1;
-
-            if (opacity === 1) opacitySwitch = false;
-
-            if (opacity === 0) opacitySwitch = true;
-
-            opacity = Number(opacity.toFixed(1));
-
-            applyPreviewColor(container);
-
-            startTime = timestamp;
-          }
-
-          previewRaf = requestAnimationFrame(
-            effectAlarmPreview(container, raf)
-          );
-
-          const list = document.querySelector(".smpChat__connect__list");
-
-          list.addEventListener(
-            "click",
-            stopAlarmPreview(container, previewRaf),
-            true
-          );
-        };
-      }
-
-      function applyPreviewColor(container) {
+      function applyPreviewColor() {
         container.style.outline = `3px groove ${getRootColorRGB()}, ${opacity})`;
         container.style.boxShadow = `inset 0 2px 45px ${getRootColorRGB()}, ${opacity})`;
       }
@@ -2020,22 +2029,20 @@
         return color.substring(0, color.length - 1);
       }
 
-      function stopAlarmPreview(container, raf) {
-        return (e) => {
-          if (!e.target.classList.contains("smpChat__connect_previewExit")) {
-            const targetDom = eventDelegation(
-              e.target,
-              "smpChat__connect__container"
-            );
+      function stopAlarmPreview(e) {
+        if (!e.target.classList.contains("smpChat__connect_previewExit")) {
+          const targetDom = eventDelegation(
+            e.target,
+            "smpChat__connect__container"
+          );
 
-            if (targetDom === container) {
-              container.style.outline = "none";
-              container.style.boxShadow = "none";
+          if (targetDom === container) {
+            container.style.outline = "none";
+            container.style.boxShadow = "none";
 
-              cancelAnimationFrame(raf);
-            }
+            cancelAnimationFrame(previewRaf);
           }
-        };
+        }
 
         function eventDelegation(targetDom, domName) {
           while (!targetDom.classList.contains(domName)) {
@@ -2050,8 +2057,8 @@
           return targetDom;
         }
       }
-    };
-  })();
+    }
+  };
 
   const effectSelect = function effectPreviewSelect(roomName) {
     if (!roomName) return;
