@@ -248,6 +248,8 @@ const socketReceive = function receiveSocketContact(socket) {
         if (!result) return;
 
         socket.leave(roomName);
+
+        return;
       });
     },
     prevDialog: () => {
