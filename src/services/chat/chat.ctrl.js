@@ -37,7 +37,7 @@ export const verifyClientId = async (clientId) => {
 
 export const judgeUserType = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
-
+  
   if (oauth === null) return "oauth null";
 
   const managerList = oauth.client.chatManagerList;

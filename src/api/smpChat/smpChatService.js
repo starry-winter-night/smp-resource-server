@@ -3,9 +3,10 @@
   const smpChat = {
     setting: {
       chatService: class ChatService {
-        constructor(clientId, apiKey) {
+        constructor(clientId, apiKey, socketIo) {
           this.clientId = clientId;
           this.apiKey = apiKey;
+          this.socketIo = socketIo;
         }
 
         async init(userId, domId) {
@@ -25,7 +26,9 @@
 
             drawChatHTML(this.args, data.type);
 
-            const socket = await socketConn(this.args);
+            const socket = this.socketIo
+              ? await socketConn(this.args, this.socketIo)
+              : await socketScriptConn(this.args);
 
             changeSwitch(data.state);
 
@@ -51,27 +54,29 @@
 
             drawAlarm.clickCloseReDraw();
 
-            socketReceive(socket).error();
+            const receive = new SocketReceive(socket);
 
-            socketReceive(socket).connect();
+            receive.error();
 
-            socketReceive(socket).btnSwitch();
+            receive.connect();
 
-            socketReceive(socket).start(userId, data.type);
+            receive.btnSwitch();
 
-            socketReceive(socket).preview(userId);
+            receive.start(userId, data.type);
 
-            socketReceive(socket).join(userId);
+            receive.preview(userId);
 
-            socketReceive(socket).prevDialog(userId);
+            receive.join(userId);
 
-            socketReceive(socket).message(userId);
+            receive.prevDialog(userId);
 
-            socketReceive(socket).systemMessage(userId);
+            receive.message(userId);
 
-            socketReceive(socket).observe();
+            receive.systemMessage(userId);
 
-            socketReceive(socket).alarm(userId);
+            receive.observe();
+
+            receive.alarm(userId);
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -89,10 +94,10 @@
           try {
             function processNonLoginUser() {
               let uid = null;
-              const getUid = localStorage.getItem("nonUserId");
+              const getUid = localStorage.getItem('nonUserId');
               if (getUid === null) {
                 uid = createUID();
-                localStorage.setItem("nonUserId", uid);
+                localStorage.setItem('nonUserId', uid);
               } else {
                 uid = getUid;
               }
@@ -109,41 +114,30 @@
     },
   };
 
-  const socketReceive = function receiveSocketContact(socket) {
-    const receiveApi = {
-      connect,
-      btnSwitch,
-      start,
-      preview,
-      join,
-      prevDialog,
-      message,
-      systemMessage,
-      observe,
-      alarm,
-      disconnect,
-      error,
-    };
+  class SocketReceive {
+    constructor(socket) {
+      this.socket = socket;
+    }
 
-    return receiveApi;
-
-    function connect() {
-      socket.on("connect", () => {
-        console.log("server connect!!");
+    connect() {
+      this.socket.on('connect', () => {
+        console.log('server connect!!');
       });
     }
-    function btnSwitch() {
-      socket.on("switch", (state) => {
-        if (state === "off") {
-          connServer.off(socket);
+
+    btnSwitch() {
+      this.socket.on('switch', (state) => {
+        if (state === 'off') {
+          connServer.off(this.socket);
           resetHTML.dialog();
           contentsHTML.drawNotice();
           contentsHTML.drawSystemMessage(state);
         }
       });
     }
-    function start(userId, type) {
-      socket.on("start", (info) => {
+
+    start(userId, type) {
+      this.socket.on('start', (info) => {
         const { dialog, previewLog, alarmCount } = info;
 
         resetHTML.dialog();
@@ -157,11 +151,11 @@
             if (!logs.observe && logs.userId !== userId) {
               count = count + 1;
 
-              observeChatView(socket, dialog[0].roomName);
+              observeChatView(this.socket, dialog[0].roomName);
             }
           });
 
-          contentsHTML.drawSystemMessage("on");
+          contentsHTML.drawSystemMessage('on');
 
           drawAlarm.icon(count);
         }
@@ -183,17 +177,18 @@
             }
           });
 
-          if (dialog.length !== 0 && type === "manager") {
+          if (dialog.length !== 0 && type === 'manager') {
             effectSelect(dialog[0].roomName);
           }
         }
 
-        loadScroll(socket);
+        loadScroll(this.socket);
       });
     }
-    function preview(userId) {
-      socket.on("preview", (info, previewType) => {
-        if (previewType === "Delete") return deletePreview(info);
+
+    preview(userId) {
+      this.socket.on('preview', (info, previewType) => {
+        if (previewType === 'Delete') return deletePreview(info);
 
         contentsHTML.drawPreview(info);
 
@@ -207,9 +202,9 @@
       });
 
       function countMessageIconAlarm() {
-        const iconAlarm = document.querySelector(".smpChat__message__alarm");
+        const iconAlarm = document.querySelector('.smpChat__message__alarm');
         const alarms = document.querySelectorAll(
-          ".smpChat__connect_previewAlarm"
+          '.smpChat__connect_previewAlarm'
         );
         const arrAlarm = [...alarms];
 
@@ -220,20 +215,20 @@
 
           const alarm = parseInt(dom.textContent);
 
-          if (typeof alarm !== "number") return;
+          if (typeof alarm !== 'number') return;
 
           alramCount = alramCount + alarm;
         });
 
         if (alramCount === 0) {
-          iconAlarm.classList.remove("view");
+          iconAlarm.classList.remove('view');
 
           return;
         }
 
         if (alramCount > 0) {
-          if (!iconAlarm.classList.contains("view")) {
-            iconAlarm.classList.add("view");
+          if (!iconAlarm.classList.contains('view')) {
+            iconAlarm.classList.add('view');
 
             iconAlarm.textContent = alramCount;
 
@@ -242,7 +237,7 @@
 
           const currCount = parseInt(iconAlarm.textContent);
 
-          if (typeof currCount !== "number") return;
+          if (typeof currCount !== 'number') return;
 
           iconAlarm.textContent =
             alramCount < currCount ? currCount + 1 : alramCount;
@@ -251,27 +246,29 @@
         }
       }
 
-      function deletePreview(rooName) {
+      function deletePreview(roomName) {
         const container = document.querySelector(
           `.smpChat__connect__container[data-id="${roomName}"]`
         );
         container.remove();
       }
     }
-    function join(userId) {
-      socket.on("join", (dialog) => {
+
+    join(userId) {
+      this.socket.on('join', (dialog) => {
         resetHTML.dialog(dialog[0].roomName);
 
         dialog.forEach((logs) => contentsHTML.drawDialog(logs, userId));
 
-        scrollBottom(document.querySelector(".smpChat__dialog__chatView"));
+        scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
         effectSelect(dialog[0].roomName);
       });
     }
-    function prevDialog(userId) {
-      socket.on("prevDialog", (dialog) => {
-        const chatView = document.querySelector(".smpChat__dialog__chatView");
+
+    prevDialog(userId) {
+      this.socket.on('prevDialog', (dialog) => {
+        const chatView = document.querySelector('.smpChat__dialog__chatView');
         const prevHeight = chatView.scrollHeight;
 
         dialog.reverse().forEach((logs) => {
@@ -288,77 +285,83 @@
         dom.scrollTop = height;
       }
     }
-    function message(userId) {
-      socket.on("message", (message) => {
+
+    message(userId) {
+      this.socket.on('message', (message) => {
         contentsHTML.drawDialog(message, userId);
 
-        scrollBottom(document.querySelector(".smpChat__dialog__chatView"));
+        scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
         if (message.userId !== userId) {
           drawAlarm.icon(message.alarm);
 
-          observeChatView(socket, message.roomName);
+          observeChatView(this.socket, message.roomName);
         }
       });
     }
-    function systemMessage() {
-      socket.on("systemMessage", (message) => {
+
+    systemMessage() {
+      this.socket.on('systemMessage', (message) => {
         const checkbox =
           document.querySelector(`.smpChat__connect__switchInput`) ||
           document.querySelector(`.smpChat__dialog__switchInput`);
         let state = null;
 
-        if (checkbox.checked) state = "on";
+        if (checkbox.checked) state = 'on';
 
         contentsHTML.drawSystemMessage(state, message);
       });
     }
-    function observe() {
-      socket.on("observe", (observe) => {
+
+    observe() {
+      this.socket.on('observe', (observe) => {
         if (observe) {
           changeReadIcon();
         }
       });
     }
-    function alarm() {
-      socket.on("alarm", (msgCounts) => {
+
+    alarm() {
+      this.socket.on('alarm', (msgCounts) => {
         let count = 0;
 
         for (userId in msgCounts) count = count + msgCounts[userId];
 
-        document.querySelector(".smpChat__message__alarm").textContent = count;
+        document.querySelector('.smpChat__message__alarm').textContent = count;
       });
     }
-    function disconnect() {
-      socket.on("disconnect", (reason) => {
+
+    disconnect() {
+      this.socket.on('disconnect', (reason) => {
         console.log(reason);
       });
     }
-    function error() {
-      socket.on("connect_error", (err) => {
-        if (err.data.message === "duplicate_connection") {
+
+    error() {
+      this.socket.on('connect_error', (err) => {
+        if (err.data.message === 'duplicate_connection') {
           changeSwitch(err.data.state);
-          contentsHTML.drawAlert("duplicate");
+          contentsHTML.drawAlert('duplicate');
         }
       });
     }
-  };
+  }
 
   const socketSend = function sendSocketArea(socket) {
     return {
-      serverSwitch: (state) => socket.emit("switch", state),
+      serverSwitch: (state) => socket.emit('switch', state),
 
-      message: (msg, img) => socket.emit("message", msg, img),
+      message: (msg, img) => socket.emit('message', msg, img),
 
-      join: (userId) => socket.emit("join", userId),
+      join: (userId) => socket.emit('join', userId),
 
-      leave: (roomName) => socket.emit("leave", roomName),
+      leave: (roomName) => socket.emit('leave', roomName),
 
-      prevDialog: (seq) => socket.emit("prevDialog", seq),
+      prevDialog: (seq) => socket.emit('prevDialog', seq),
 
-      observe: (roomName) => socket.emit("observe", roomName),
+      observe: (roomName) => socket.emit('observe', roomName),
 
-      alarm: (userId, msgUser) => socket.emit("alarm", userId, msgUser),
+      alarm: (userId, msgUser) => socket.emit('alarm', userId, msgUser),
     };
   };
 
@@ -368,23 +371,23 @@
     userId,
     domId,
   }) {
-    if (!clientId || clientId === "" || typeof clientId !== "string") {
-      SmpChatError.errHandle("clientId가 유효하지 않습니다.");
+    if (!clientId || clientId === '' || typeof clientId !== 'string') {
+      SmpChatError.errHandle('clientId가 유효하지 않습니다.');
       return false;
     }
 
-    if (!apiKey || apiKey === "" || typeof apiKey !== "string") {
-      SmpChatError.errHandle("apiKey가 유효하지 않습니다.");
+    if (!apiKey || apiKey === '' || typeof apiKey !== 'string') {
+      SmpChatError.errHandle('apiKey가 유효하지 않습니다.');
       return false;
     }
 
-    if (userId === "") {
-      SmpChatError.errHandle("id를 입력해주세요.");
+    if (userId === '') {
+      SmpChatError.errHandle('id를 입력해주세요.');
       return false;
     }
 
-    if (!domId || domId === "" || typeof domId !== "string") {
-      SmpChatError.errHandle("올바른 documentId를 입력해주세요.");
+    if (!domId || domId === '' || typeof domId !== 'string') {
+      SmpChatError.errHandle('올바른 documentId를 입력해주세요.');
       return false;
     }
 
@@ -412,7 +415,28 @@
     }
   };
 
-  const socketConn = function connectSocketURL({ clientId, apiKey, userId }) {
+  const socketConn = function connectSocketURL(
+    { clientId, apiKey, userId },
+    socketIo
+  ) {
+    return socketIo(`ws://localhost:7000/${clientId}`, {
+      reconnectionDelayMax: 10000,
+      autoConnect: false,
+      auth: {
+        apiKey,
+      },
+      query: {
+        userId,
+        clientId,
+      },
+    });
+  };
+
+  const socketScriptConn = function connectSocketURL({
+    clientId,
+    apiKey,
+    userId,
+  }) {
     return io(`ws://localhost:7000/${clientId}`, {
       reconnectionDelayMax: 10000,
       autoConnect: false,
@@ -427,7 +451,7 @@
   };
 
   const drawChatHTML = function drawChatHTMLByType({ domId }, type) {
-    type === "manager" ? drawManagerHTML(domId) : drawClientHTML(domId);
+    type === 'manager' ? drawManagerHTML(domId) : drawClientHTML(domId);
     toggleChatView();
     changeDialogAreaHeight();
 
@@ -436,50 +460,50 @@
 
       /*****************************  layout *****************************/
       /* common */
-      const section = document.createElement("section");
-      const inconsolataFont = document.createElement("link");
-      const josefinSansFont = document.createElement("link");
-      const nanumGothicFont = document.createElement("link");
-      const navbar = document.createElement("div");
-      const contents = document.createElement("div");
-      const logo = document.createElement("h3");
-      const theme = document.createElement("img");
-      const closeImg = document.createElement("img");
-      const connect = document.createElement("div");
-      const dialog = document.createElement("div");
-      const alarm = document.createElement("p");
-      const smpChatIconImg = document.createElement("img");
+      const section = document.createElement('section');
+      const inconsolataFont = document.createElement('link');
+      const josefinSansFont = document.createElement('link');
+      const nanumGothicFont = document.createElement('link');
+      const navbar = document.createElement('div');
+      const contents = document.createElement('div');
+      const logo = document.createElement('h3');
+      const theme = document.createElement('img');
+      const closeImg = document.createElement('img');
+      const connect = document.createElement('div');
+      const dialog = document.createElement('div');
+      const alarm = document.createElement('p');
+      const smpChatIconImg = document.createElement('img');
 
       /* connect */
-      const connNav = document.createElement("div");
-      const connNavInfo = document.createElement("h3");
-      const connSwitch = document.createElement("div");
-      const connSwitchLabel = document.createElement("label");
-      const connSwitchBall = document.createElement("span");
-      const connSwitchSpan = document.createElement("span");
-      const connSwitchInput = document.createElement("input");
-      const connSwitchOffP = document.createElement("p");
-      const connSwitchOnP = document.createElement("p");
-      const connList = document.createElement("div");
+      const connNav = document.createElement('div');
+      const connNavInfo = document.createElement('h3');
+      const connSwitch = document.createElement('div');
+      const connSwitchLabel = document.createElement('label');
+      const connSwitchBall = document.createElement('span');
+      const connSwitchSpan = document.createElement('span');
+      const connSwitchInput = document.createElement('input');
+      const connSwitchOffP = document.createElement('p');
+      const connSwitchOnP = document.createElement('p');
+      const connList = document.createElement('div');
 
       /* dialog */
-      const dialogNav = document.createElement("div");
-      const dialogChatView = document.createElement("div");
-      const dialogChatFooter = document.createElement("div");
-      const dialogChatAddImg = document.createElement("img");
-      const dialogChatAddInput = document.createElement("input");
-      const dialogChatAddLabel = document.createElement("label");
-      const dialogChatMsgTextArea = document.createElement("textarea");
-      const dialogChatMsgSend = document.createElement("img");
+      const dialogNav = document.createElement('div');
+      const dialogChatView = document.createElement('div');
+      const dialogChatFooter = document.createElement('div');
+      const dialogChatAddImg = document.createElement('img');
+      const dialogChatAddInput = document.createElement('input');
+      const dialogChatAddLabel = document.createElement('label');
+      const dialogChatMsgTextArea = document.createElement('textarea');
+      const dialogChatMsgSend = document.createElement('img');
 
       /*****************************  node  *****************************/
       /* common */
-      const logoText = document.createTextNode("smpchat");
+      const logoText = document.createTextNode('smpchat');
 
       /* connect */
-      const infoText = document.createTextNode("Connect to Chat Server:");
-      const connSwitchOff = document.createTextNode("OFF");
-      const connSwitchOn = document.createTextNode("ON");
+      const infoText = document.createTextNode('Connect to Chat Server:');
+      const connSwitchOff = document.createTextNode('OFF');
+      const connSwitchOn = document.createTextNode('ON');
 
       /*****************************  appned  *****************************/
       /* common */
@@ -527,139 +551,139 @@
 
       /*****************************  className & id  *****************************/
       /* common */
-      section.id = "smpChat_managerSection";
-      section.className = "smpChat__section";
-      contents.className = "smpChat__section__contents";
-      navbar.className = "smpChat__section__navbar";
-      connect.className = "smpChat__section__connect";
+      section.id = 'smpChat_managerSection';
+      section.className = 'smpChat__section';
+      contents.className = 'smpChat__section__contents';
+      navbar.className = 'smpChat__section__navbar';
+      connect.className = 'smpChat__section__connect';
       dialog.className =
-        "smpChat__section__dialog";
-      logo.className = "smpChat__section__logo";
-      theme.className = "smpChat__section__theme";
-      closeImg.className = "smpChat__section__close";
-      alarm.className = "smpChat__message__alarm";
-      smpChatIconImg.className = "smpChatIcon";
+        'smpChat__section__dialog smpChat__section__managerDialog';
+      logo.className = 'smpChat__section__logo';
+      theme.className = 'smpChat__section__theme';
+      closeImg.className = 'smpChat__section__close';
+      alarm.className = 'smpChat__message__alarm';
+      smpChatIconImg.className = 'smpChatIcon';
 
       /* connect */
-      connNav.className = "smpChat__connect__navbar";
-      connNavInfo.className = "smpChat__connect__navInfo";
-      connList.className = "smpChat__connect__list";
-      connSwitch.className = "smpChat__connect__switch";
-      connSwitchBall.className = "smpChat__connect__switchBall";
-      connSwitchSpan.className = "smpChat__connect__switchSpan";
-      connSwitchLabel.className = "smpChat__connect__switchLabel";
-      connSwitchInput.id = "smp_chat_switch";
-      connSwitchInput.className = "smpChat__connect__switchInput";
-      connSwitchOffP.className = "smpChat__connect__switchOff";
-      connSwitchOnP.className = "smpChat__connect__switchOn";
+      connNav.className = 'smpChat__connect__navbar';
+      connNavInfo.className = 'smpChat__connect__navInfo';
+      connList.className = 'smpChat__connect__list';
+      connSwitch.className = 'smpChat__connect__switch';
+      connSwitchBall.className = 'smpChat__connect__switchBall';
+      connSwitchSpan.className = 'smpChat__connect__switchSpan';
+      connSwitchLabel.className = 'smpChat__connect__switchLabel';
+      connSwitchInput.id = 'smp_chat_switch';
+      connSwitchInput.className = 'smpChat__connect__switchInput';
+      connSwitchOffP.className = 'smpChat__connect__switchOff';
+      connSwitchOnP.className = 'smpChat__connect__switchOn';
 
       /* dialog */
-      dialogNav.className = "smpChat__dialog__navbar";
-      dialogChatView.className = "smpChat__dialog__chatView";
-      dialogChatFooter.className = "smpChat__dialog__footer";
-      dialogChatAddImg.className = "smpChat__dialog__addImg";
-      dialogChatAddInput.id = "smp_chat_addImg";
-      dialogChatAddInput.className = "smpChat__dialog__addInput";
-      dialogChatAddLabel.className = "smpChat__dialog__addLabel";
-      dialogChatMsgTextArea.className = "smpChat__dialog__msgTextArea";
-      dialogChatMsgSend.className = "smpChat__dialog__sendImg";
+      dialogNav.className = 'smpChat__dialog__navbar';
+      dialogChatView.className = 'smpChat__dialog__chatView';
+      dialogChatFooter.className = 'smpChat__dialog__footer';
+      dialogChatAddImg.className = 'smpChat__dialog__addImg';
+      dialogChatAddInput.id = 'smp_chat_addImg';
+      dialogChatAddInput.className = 'smpChat__dialog__addInput';
+      dialogChatAddLabel.className = 'smpChat__dialog__addLabel';
+      dialogChatMsgTextArea.className = 'smpChat__dialog__msgTextArea';
+      dialogChatMsgSend.className = 'smpChat__dialog__sendImg';
 
       /***************************** set *****************************/
       /* common */
-      inconsolataFont.setAttribute("rel", "stylesheet");
+      inconsolataFont.setAttribute('rel', 'stylesheet');
       inconsolataFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700&display=swap'
       );
-      josefinSansFont.setAttribute("rel", "stylesheet");
+      josefinSansFont.setAttribute('rel', 'stylesheet');
       josefinSansFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100;300;400;600;700&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100;300;400;600;700&display=swap'
       );
-      nanumGothicFont.setAttribute("rel", "stylesheet");
+      nanumGothicFont.setAttribute('rel', 'stylesheet');
       nanumGothicFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&display=swap'
       );
 
       smpChatIconImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=chat.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=chat.png'
       );
-      smpChatIconImg.setAttribute("alt", "채팅아이콘");
+      smpChatIconImg.setAttribute('alt', '채팅아이콘');
       closeImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=close.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=close.png'
       );
       theme.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=redFlower.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=redFlower.png'
       );
-      closeImg.setAttribute("alt", "채팅창닫기 아이콘");
+      closeImg.setAttribute('alt', '채팅창닫기 아이콘');
 
       /* connect */
-      connSwitchLabel.htmlFor = "smp_chat_switch";
-      connSwitchInput.type = "checkbox";
-      connSwitchInput.name = "smp_chat_switch";
+      connSwitchLabel.htmlFor = 'smp_chat_switch';
+      connSwitchInput.type = 'checkbox';
+      connSwitchInput.name = 'smp_chat_switch';
 
       /* dialog */
       dialogChatAddImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=plus.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=plus.png'
       );
       dialogChatMsgSend.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=blueSend.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=blueSend.png'
       );
-      dialogChatAddLabel.htmlFor = "smp_chat_addImg";
-      dialogChatAddInput.type = "file";
-      dialogChatAddInput.accept = "image/gif, image/jpeg, image/png";
-      dialogChatAddInput.name = "smp_chat_addImg";
+      dialogChatAddLabel.htmlFor = 'smp_chat_addImg';
+      dialogChatAddInput.type = 'file';
+      dialogChatAddInput.accept = 'image/gif, image/jpeg, image/png';
+      dialogChatAddInput.name = 'smp_chat_addImg';
     }
     function drawClientHTML(domId) {
       const smpChatLayout = document.getElementById(domId);
 
       /*****************************  layout *****************************/
       /* common */
-      const section = document.createElement("section");
-      const inconsolataFont = document.createElement("link");
-      const josefinSansFont = document.createElement("link");
-      const nanumGothicFont = document.createElement("link");
-      const navbar = document.createElement("div");
-      const contents = document.createElement("div");
-      const logo = document.createElement("h3");
-      const theme = document.createElement("img");
-      const closeImg = document.createElement("img");
-      const dialog = document.createElement("div");
-      const alarm = document.createElement("p");
-      const smpChatIconImg = document.createElement("img");
+      const section = document.createElement('section');
+      const inconsolataFont = document.createElement('link');
+      const josefinSansFont = document.createElement('link');
+      const nanumGothicFont = document.createElement('link');
+      const navbar = document.createElement('div');
+      const contents = document.createElement('div');
+      const logo = document.createElement('h3');
+      const theme = document.createElement('img');
+      const closeImg = document.createElement('img');
+      const dialog = document.createElement('div');
+      const alarm = document.createElement('p');
+      const smpChatIconImg = document.createElement('img');
 
       /* dialog */
-      const dialogNav = document.createElement("div");
-      const dialogSwitch = document.createElement("div");
-      const dialogNavInfo = document.createElement("h3");
-      const dialogSwitchLabel = document.createElement("label");
-      const dialogSwitchBall = document.createElement("span");
-      const dialogSwitchSpan = document.createElement("span");
-      const dialogSwitchInput = document.createElement("input");
-      const dialogSwitchOffP = document.createElement("p");
-      const dialogSwitchOnP = document.createElement("p");
-      const dialogChatView = document.createElement("div");
-      const dialogChatFooter = document.createElement("div");
-      const dialogChatAddImg = document.createElement("img");
-      const dialogChatAddInput = document.createElement("input");
-      const dialogChatAddLabel = document.createElement("label");
-      const dialogChatMsgTextArea = document.createElement("textarea");
-      const dialogChatMsgSend = document.createElement("img");
+      const dialogNav = document.createElement('div');
+      const dialogSwitch = document.createElement('div');
+      const dialogNavInfo = document.createElement('h3');
+      const dialogSwitchLabel = document.createElement('label');
+      const dialogSwitchBall = document.createElement('span');
+      const dialogSwitchSpan = document.createElement('span');
+      const dialogSwitchInput = document.createElement('input');
+      const dialogSwitchOffP = document.createElement('p');
+      const dialogSwitchOnP = document.createElement('p');
+      const dialogChatView = document.createElement('div');
+      const dialogChatFooter = document.createElement('div');
+      const dialogChatAddImg = document.createElement('img');
+      const dialogChatAddInput = document.createElement('input');
+      const dialogChatAddLabel = document.createElement('label');
+      const dialogChatMsgTextArea = document.createElement('textarea');
+      const dialogChatMsgSend = document.createElement('img');
 
       /*****************************  node  *****************************/
       /* common */
-      const logoText = document.createTextNode("smpchat");
+      const logoText = document.createTextNode('smpchat');
 
       /* dialog */
-      const infoText = document.createTextNode("Web Developer smPark 채팅하기");
-      const connSwitchOff = document.createTextNode("OFF");
-      const connSwitchOn = document.createTextNode("ON");
+      const infoText = document.createTextNode('Web Developer smPark 채팅하기');
+      const connSwitchOff = document.createTextNode('OFF');
+      const connSwitchOn = document.createTextNode('ON');
 
       /*****************************  appned  *****************************/
       /* common */
@@ -704,117 +728,117 @@
 
       /*****************************  className & id  *****************************/
       /* common */
-      section.id = "smpChat_clientSection";
-      section.className = "smpChat__section";
-      contents.className = "smpChat__section__contents";
-      alarm.className = "smpChat__message__alarm";
-      navbar.className = "smpChat__section__navbar";
+      section.id = 'smpChat_clientSection';
+      section.className = 'smpChat__section';
+      contents.className = 'smpChat__section__contents';
+      alarm.className = 'smpChat__message__alarm';
+      navbar.className = 'smpChat__section__navbar';
       dialog.className =
-        "smpChat__section__dialog smpChat__section__clientDialog";
-      logo.className = "smpChat__section__logo";
-      theme.className = "smpChat__section__theme";
-      closeImg.className = "smpChat__section__close";
-      smpChatIconImg.className = "smpChatIcon";
+        'smpChat__section__dialog smpChat__section__clientDialog';
+      logo.className = 'smpChat__section__logo';
+      theme.className = 'smpChat__section__theme';
+      closeImg.className = 'smpChat__section__close';
+      smpChatIconImg.className = 'smpChatIcon';
 
       /* dialog */
-      dialogNav.className = "smpChat__dialog__navbar";
-      dialogNavInfo.className = "smpChat__dialog__navInfo";
-      dialogSwitch.className = "smpChat__dialog__switch";
-      dialogSwitchBall.className = "smpChat__dialog__switchBall";
-      dialogSwitchSpan.className = "smpChat__dialog__switchSpan";
-      dialogSwitchLabel.className = "smpChat__dialog__switchLabel";
-      dialogSwitchInput.id = "smp_chat_switch";
-      dialogSwitchInput.className = "smpChat__dialog__switchInput";
-      dialogSwitchOffP.className = "smpChat__dialog__switchOff";
-      dialogSwitchOnP.className = "smpChat__dialog__switchOn";
-      dialogChatView.className = "smpChat__dialog__chatView";
-      dialogChatFooter.className = "smpChat__dialog__footer";
-      dialogChatAddImg.className = "smpChat__dialog__addImg";
-      dialogChatAddInput.id = "smp_chat_addImg";
-      dialogChatAddInput.className = "smpChat__dialog__addInput";
-      dialogChatAddLabel.className = "smpChat__dialog__addLabel";
-      dialogChatMsgTextArea.className = "smpChat__dialog__msgTextArea";
-      dialogChatMsgSend.className = "smpChat__dialog__sendImg";
+      dialogNav.className = 'smpChat__dialog__navbar';
+      dialogNavInfo.className = 'smpChat__dialog__navInfo';
+      dialogSwitch.className = 'smpChat__dialog__switch';
+      dialogSwitchBall.className = 'smpChat__dialog__switchBall';
+      dialogSwitchSpan.className = 'smpChat__dialog__switchSpan';
+      dialogSwitchLabel.className = 'smpChat__dialog__switchLabel';
+      dialogSwitchInput.id = 'smp_chat_switch';
+      dialogSwitchInput.className = 'smpChat__dialog__switchInput';
+      dialogSwitchOffP.className = 'smpChat__dialog__switchOff';
+      dialogSwitchOnP.className = 'smpChat__dialog__switchOn';
+      dialogChatView.className = 'smpChat__dialog__chatView';
+      dialogChatFooter.className = 'smpChat__dialog__footer';
+      dialogChatAddImg.className = 'smpChat__dialog__addImg';
+      dialogChatAddInput.id = 'smp_chat_addImg';
+      dialogChatAddInput.className = 'smpChat__dialog__addInput';
+      dialogChatAddLabel.className = 'smpChat__dialog__addLabel';
+      dialogChatMsgTextArea.className = 'smpChat__dialog__msgTextArea';
+      dialogChatMsgSend.className = 'smpChat__dialog__sendImg';
 
       /***************************** set *****************************/
       /* common */
-      inconsolataFont.setAttribute("rel", "stylesheet");
+      inconsolataFont.setAttribute('rel', 'stylesheet');
       inconsolataFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700&display=swap'
       );
-      josefinSansFont.setAttribute("rel", "stylesheet");
+      josefinSansFont.setAttribute('rel', 'stylesheet');
       josefinSansFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100;300;400;600;700&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@100;300;400;600;700&display=swap'
       );
-      nanumGothicFont.setAttribute("rel", "stylesheet");
+      nanumGothicFont.setAttribute('rel', 'stylesheet');
       nanumGothicFont.setAttribute(
-        "href",
-        "https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&display=swap"
+        'href',
+        'https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&display=swap'
       );
 
       smpChatIconImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=chat.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=chat.png'
       );
-      smpChatIconImg.setAttribute("alt", "채팅아이콘");
+      smpChatIconImg.setAttribute('alt', '채팅아이콘');
       theme.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=redFlower.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=redFlower.png'
       );
       closeImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=close.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=close.png'
       );
-      closeImg.setAttribute("alt", "채팅창닫기 아이콘");
+      closeImg.setAttribute('alt', '채팅창닫기 아이콘');
 
       /* dialog */
 
-      dialogSwitchLabel.htmlFor = "smp_chat_switch";
-      dialogSwitchInput.type = "checkbox";
-      dialogSwitchInput.name = "smp_chat_switch";
+      dialogSwitchLabel.htmlFor = 'smp_chat_switch';
+      dialogSwitchInput.type = 'checkbox';
+      dialogSwitchInput.name = 'smp_chat_switch';
       dialogChatAddImg.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=plus.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=plus.png'
       );
       dialogChatMsgSend.setAttribute(
-        "src",
-        "http://localhost:5000/smpChat/image?name=blueSend.png"
+        'src',
+        'http://localhost:5000/smpChat/image?name=blueSend.png'
       );
-      dialogChatAddLabel.htmlFor = "smp_chat_addImg";
-      dialogChatAddInput.type = "file";
-      dialogChatAddInput.accept = "image/gif, image/jpeg, image/png";
-      dialogChatAddInput.name = "smp_chat_addImg";
+      dialogChatAddLabel.htmlFor = 'smp_chat_addImg';
+      dialogChatAddInput.type = 'file';
+      dialogChatAddInput.accept = 'image/gif, image/jpeg, image/png';
+      dialogChatAddInput.name = 'smp_chat_addImg';
     }
     function toggleChatView() {
-      const icon = document.querySelector(".smpChatIcon");
-      const section = document.querySelector(".smpChat__section");
-      const close = document.querySelector(".smpChat__section__close");
-      const chatView = document.querySelector(".smpChat__dialog__chatView");
+      const icon = document.querySelector('.smpChatIcon');
+      const section = document.querySelector('.smpChat__section');
+      const close = document.querySelector('.smpChat__section__close');
+      const chatView = document.querySelector('.smpChat__dialog__chatView');
 
-      icon.addEventListener("click", iconClickHandler, false);
-      close.addEventListener("click", closeClickHandler, false);
+      icon.addEventListener('click', iconOnClickHandler);
+      close.addEventListener('click', closeOnClickHandler);
 
-      function iconClickHandler() {
-        icon.classList.toggle("smp_active");
-        section.classList.toggle("smp_active");
+      function iconOnClickHandler() {
+        icon.classList.toggle('smp_active');
+        section.classList.toggle('smp_active');
 
         scrollBottom(chatView);
       }
 
-      function closeClickHandler() {
-        icon.classList.toggle("smp_active");
-        section.classList.toggle("smp_active");
+      function closeOnClickHandler() {
+        icon.classList.toggle('smp_active');
+        section.classList.toggle('smp_active');
       }
     }
     function changeDialogAreaHeight() {
-      const msgInput = document.querySelector(".smpChat__dialog__msgTextArea");
-      const footer = document.querySelector(".smpChat__dialog__footer");
-      const chatView = document.querySelector(".smpChat__dialog__chatView");
+      const msgInput = document.querySelector('.smpChat__dialog__msgTextArea');
+      const footer = document.querySelector('.smpChat__dialog__footer');
+      const chatView = document.querySelector('.smpChat__dialog__chatView');
 
-      msgInput.addEventListener("input", changeDialogHeightHandler, false);
-      msgInput.addEventListener("keydown", ctrlEnterLineBreakHandler, false);
+      msgInput.addEventListener('input', changeDialogHeightHandler);
+      msgInput.addEventListener('keydown', ctrlEnterLineBreakHandler);
 
       function changeDialogHeightHandler(e) {
         const inputHeight = msgInput.offsetHeight;
@@ -822,7 +846,7 @@
         const chatViewHeight = chatView.offsetHeight;
 
         // textarea의 높이 값을 부여하여 자동으로 높이값을 조절하게 한다.
-        msgInput.style.height = "0px";
+        msgInput.style.height = '0px';
         msgInput.style.height = `${msgInput.scrollHeight}px`;
         // 핵심은 줄바꿈마다 inputBox의 초기높이 만큼 더하거나 빼준다.
         if (msgInput.scrollHeight > inputHeight) {
@@ -847,7 +871,7 @@
       }
 
       function ctrlEnterLineBreakHandler(e) {
-        if (e.ctrlKey && e.key === "Enter") {
+        if (e.ctrlKey && e.key === 'Enter') {
           ctrlCursorPosition(e);
           changeDialogHeightHandler(e);
           scrollBottom(chatView);
@@ -859,7 +883,7 @@
         const cursorPosition = e.target.selectionEnd;
         const cursorNextText = e.target.value.substring(cursorPosition);
         const cursorPrevText = e.target.value.substring(0, cursorPosition);
-        const lineBreak = "\r\n";
+        const lineBreak = '\r\n';
 
         e.target.value = cursorPrevText + lineBreak;
 
@@ -875,13 +899,13 @@
       }
 
       function changeScrollMaxHeight(dom) {
-        const maxHeight = removeStringWord(getStyleValue(dom, "max-height"));
+        const maxHeight = removeStringWord(getStyleValue(dom, 'max-height'));
 
         dom.style.overflowY =
-          dom.offsetHeight >= maxHeight ? "scroll" : "hidden";
+          dom.offsetHeight >= maxHeight ? 'scroll' : 'hidden';
 
         function removeStringWord(str) {
-          return Number(str.replace(/[^0-9]/g, ""));
+          return Number(str.replace(/[^0-9]/g, ''));
         }
 
         function getStyleValue(dom, propName) {
@@ -894,56 +918,59 @@
   };
 
   const messageSend = function sendMessageProcess(socket, type) {
-    const message = document.querySelector(".smpChat__dialog__msgTextArea");
-    const footer = document.querySelector(".smpChat__dialog__footer");
-    const chatView = document.querySelector(".smpChat__dialog__chatView");
-    const sendButton = document.querySelector(".smpChat__dialog__sendImg");
+    const message = document.querySelector('.smpChat__dialog__msgTextArea');
+    const footer = document.querySelector('.smpChat__dialog__footer');
+    const chatView = document.querySelector('.smpChat__dialog__chatView');
+    const sendButton = document.querySelector('.smpChat__dialog__sendImg');
 
     const checkbox =
       document.querySelector(`.smpChat__connect__switchInput`) ||
       document.querySelector(`.smpChat__dialog__switchInput`);
     const arg = { socket, message, footer, chatView, checkbox };
 
-    message.addEventListener("keydown", sendMsgHandler(arg, "Enter"), false);
-    sendButton.addEventListener("click", sendMsgHandler(arg, "Click"), false);
+    message.addEventListener('keydown', sendMsgEventHandler(arg, 'Enter'));
+    sendButton.addEventListener('click', sendMsgEventHandler(arg, 'Click'));
 
-    function sendMsgHandler(arg, action) {
+    function sendMsgEventHandler(arg, action) {
       return (e) => {
-        if (action === "Click" || (e.key === action && !e.ctrlKey)) {
-          const msg = action === "Click" ? arg.message.value : e.target.value;
+        if (action === 'Click' || (e.key === action && !e.ctrlKey)) {
+          const msg = action === 'Click' ? arg.message.value : e.target.value;
 
           if (!checkEmptyString(msg)) return;
 
-          const state = arg.checkbox.checked ? "on" : "off";
+          const state = arg.checkbox.checked ? 'on' : 'off';
 
-          if (state === "on") {
-            if (type === "manager") {
-              if (checkManagerConnect() === "chatting") {
+          if (state === 'on') {
+            if (type === 'manager') {
+              const check = checkManagerConnect();
+
+              if (check === 'chatting') {
                 socketSend(arg.socket).message(msg);
               }
 
-              if (checkManagerConnect() === "waiting") {
+              if (check === 'waiting') {
                 contentsHTML.drawOfflineMessage(msg);
                 createLinkInfo(msg);
               }
             }
 
-            if (type === "client") {
+            if (type === 'client') {
               socketSend(arg.socket).message(msg);
             }
           }
 
-          if (state === "off") {
+          if (state === 'off') {
             contentsHTML.drawOfflineMessage(msg);
+
             createLinkInfo(msg);
           }
 
           scrollBottom(arg.chatView);
 
-          arg.message.value = "";
-          arg.message.style.height = "40px";
-          arg.footer.style.height = "60px";
-          arg.chatView.style.height = "540px";
+          arg.message.value = '';
+          arg.message.style.height = '40px';
+          arg.footer.style.height = '60px';
+          arg.chatView.style.height = '540px';
 
           e.preventDefault();
         }
@@ -951,47 +978,48 @@
 
       function createLinkInfo(word) {
         const trimWord = word.trim();
+
         if (
-          trimWord === "깃허브" ||
-          trimWord === "깃" ||
-          trimWord.toLowerCase() === "github" ||
-          trimWord.toLowerCase() === "git"
+          trimWord === '깃허브' ||
+          trimWord === '깃' ||
+          trimWord.toLowerCase() === 'github' ||
+          trimWord.toLowerCase() === 'git'
         ) {
-          const linkAddr = "https://github.com/starry-winter-night";
-          const gitAddr = "github.com/starry-winter-night";
+          const linkAddr = 'https://github.com/starry-winter-night';
+          const gitAddr = 'github.com/starry-winter-night';
 
           contentsHTML.drawLink(linkAddr, gitAddr);
         }
 
         if (
-          trimWord === "이메일" ||
-          trimWord === "메일" ||
-          trimWord.toLowerCase() === "email" ||
-          trimWord.toLowerCase() === "mail"
+          trimWord === '이메일' ||
+          trimWord === '메일' ||
+          trimWord.toLowerCase() === 'email' ||
+          trimWord.toLowerCase() === 'mail'
         ) {
-          const linkAddr = "mailto:smpark7723@gmail.com";
-          const mailAddr = "smpark7723@gmail.com";
+          const linkAddr = 'mailto:smpark7723@gmail.com';
+          const mailAddr = 'smpark7723@gmail.com';
 
           contentsHTML.drawLink(linkAddr, mailAddr);
         }
       }
 
       function checkEmptyString(data) {
-        return typeof data === "string" && data.trim() !== "" ? true : false;
+        return typeof data === 'string' && data.trim() !== '' ? true : false;
       }
 
       function checkManagerConnect() {
         const container = document.querySelectorAll(
-          ".smpChat__connect__container"
+          '.smpChat__connect__container'
         );
+
+        if (!container.length) return 'waiting';
+
         const arrContainer = [...container];
 
-        for (let i = 0; i < arrContainer.length; i++) {
-          if (arrContainer[i].classList.contains("select")) {
-            return "chatting";
-          }
-        }
-        return "waiting";
+        return arrContainer[0].classList.contains('select')
+          ? 'chatting'
+          : 'waiting';
       }
     }
   };
@@ -1007,8 +1035,8 @@
 
     function sectionIcon({ domId }) {
       const chatBox = document.getElementById(domId);
-      const section = document.querySelector(".smpChat__section");
-      const icon = document.querySelector(".smpChatIcon");
+      const section = document.querySelector('.smpChat__section');
+      const icon = document.querySelector('.smpChatIcon');
 
       if (!chatBox || !section || !icon) return;
 
@@ -1019,7 +1047,7 @@
     }
 
     function dialog(userId) {
-      let chatView = document.querySelector(".smpChat__dialog__chatView");
+      let chatView = document.querySelector('.smpChat__dialog__chatView');
 
       if (!chatView) {
         chatView = document.querySelector(
@@ -1027,19 +1055,15 @@
         );
       }
 
-      while (chatView.firstChild) {
-        chatView.removeChild(chatView.firstChild);
-      }
+      while (chatView.firstChild) chatView.removeChild(chatView.firstChild);
 
       return;
     }
 
     function preview() {
-      const chatList = document.querySelector(".smpChat__connect__list");
+      const chatList = document.querySelector('.smpChat__connect__list');
 
-      while (chatList.firstChild) {
-        chatList.removeChild(chatList.firstChild);
-      }
+      while (chatList.firstChild) chatList.removeChild(chatList.firstChild);
 
       return;
     }
@@ -1061,19 +1085,19 @@
 
     function drawNotice() {
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const profile = document.createElement("div");
-      const profileImage = document.createElement("img");
-      const id = document.createElement("p");
-      const span = document.createElement("span");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const time = document.createElement("time");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const profile = document.createElement('div');
+      const profileImage = document.createElement('img');
+      const id = document.createElement('p');
+      const span = document.createElement('span');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const time = document.createElement('time');
 
       /*  textNode  */
-      const idText = document.createTextNode("smpchat_bot");
-      const noticeIdSpan = document.createTextNode("[공지사항]");
+      const idText = document.createTextNode('smpchat_bot');
+      const noticeIdSpan = document.createTextNode('[공지사항]');
       const noticeContentText = `안녕하세요! 이용방법을 읽어주세요.
             </br>우측상단 버튼을 클릭시 서버와 연결됩니다. 
             </br>메시지 입력 시 컨트롤 + 엔터키를 통해 줄 바꿈 할 수 있습니다. 
@@ -1098,18 +1122,18 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      container.className = "smpChat__dialog__containerLeft";
-      contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
-      profileImage.className = "smpChat__dialog__profileImage";
-      content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time ";
-      id.className = "smpChat__dialog__id";
-      span.className = "smpChat__dialog__span";
+      container.className = 'smpChat__dialog__containerLeft';
+      contentsContainer.className = 'smpChat__dialog__contentContainerLeft';
+      profile.className = 'smpChat__dialog__profile';
+      profileImage.className = 'smpChat__dialog__profileImage';
+      content.className = 'smpChat__dialog__content';
+      time.className = 'smpChat__dialog__time ';
+      id.className = 'smpChat__dialog__id';
+      span.className = 'smpChat__dialog__span';
 
       /*  set  */
-      time.setAttribute("datetime", createTimeDate());
-      profileImage.src = "http://localhost:5000/smpChat/image?name=smpark.jpg";
+      time.setAttribute('datetime', createTimeDate());
+      profileImage.src = 'http://localhost:5000/smpChat/image?name=smpark.jpg';
 
       /*  function  */
       elapseMessageTime(time);
@@ -1117,20 +1141,20 @@
 
     function drawLink(linkAddr, msg) {
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const profile = document.createElement("div");
-      const profileImage = document.createElement("img");
-      const id = document.createElement("p");
-      const span = document.createElement("span");
-      const contentsContainer = document.createElement("div");
-      const time = document.createElement("time");
-      const link = document.createElement("a");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const profile = document.createElement('div');
+      const profileImage = document.createElement('img');
+      const id = document.createElement('p');
+      const span = document.createElement('span');
+      const contentsContainer = document.createElement('div');
+      const time = document.createElement('time');
+      const link = document.createElement('a');
 
       /*  textNode  */
-      const idText = document.createTextNode("smpchat_bot");
+      const idText = document.createTextNode('smpchat_bot');
       const linkMsg = document.createTextNode(msg);
-      const linkSpan = document.createTextNode("[정보]");
+      const linkSpan = document.createTextNode('[정보]');
 
       /*  appned  */
       id.appendChild(idText);
@@ -1146,20 +1170,20 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      container.className = "smpChat__dialog__containerLeft";
-      contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
-      profileImage.className = "smpChat__dialog__profileImage";
-      link.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
-      id.className = "smpChat__dialog__id";
-      span.className = "smpChat__dialog__span";
+      container.className = 'smpChat__dialog__containerLeft';
+      contentsContainer.className = 'smpChat__dialog__contentContainerLeft';
+      profile.className = 'smpChat__dialog__profile';
+      profileImage.className = 'smpChat__dialog__profileImage';
+      link.className = 'smpChat__dialog__content';
+      time.className = 'smpChat__dialog__time';
+      id.className = 'smpChat__dialog__id';
+      span.className = 'smpChat__dialog__span';
 
       /*  set  */
-      link.setAttribute("href", linkAddr);
-      link.target = "_blank";
-      time.setAttribute("datetime", createTimeDate());
-      profileImage.src = "http://localhost:5000/smpChat/image?name=smpark.jpg";
+      link.setAttribute('href', linkAddr);
+      link.target = '_blank';
+      time.setAttribute('datetime', createTimeDate());
+      profileImage.src = 'http://localhost:5000/smpChat/image?name=smpark.jpg';
 
       /*  function  */
       elapseMessageTime(time);
@@ -1167,33 +1191,33 @@
 
     function drawAlert(type) {
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const profile = document.createElement("div");
-      const profileImage = document.createElement("img");
-      const id = document.createElement("p");
-      const span = document.createElement("span");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const time = document.createElement("time");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const profile = document.createElement('div');
+      const profileImage = document.createElement('img');
+      const id = document.createElement('p');
+      const span = document.createElement('span');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const time = document.createElement('time');
 
       /*  textNode  */
-      const idText = document.createTextNode("smpchat_bot");
-      const noticeIdSpan = document.createTextNode("[알림]");
+      const idText = document.createTextNode('smpchat_bot');
+      const noticeIdSpan = document.createTextNode('[알림]');
       let alertText = null;
 
-      if (type === "duplicate") {
+      if (type === 'duplicate') {
         alertText = `사용자가 이미 채팅 서버를 이용 중입니다.
           </br>기존에 채팅 서버를 이용 중이 아니셨다면 잦은 새로고침이 원인일 수 있습니다.
           </br>30초 뒤에 서버를 다시 실행해 주세요.`;
       }
 
-      if (type === "imageSizeOver") {
-        alertText = "이미지 크기는 1MB 이하만 가능합니다.";
+      if (type === 'imageSizeOver') {
+        alertText = '이미지 크기는 1MB 이하만 가능합니다.';
       }
 
-      if (type === "imageTypeError") {
-        alertText = "이미지 확장자는 jpg, png, bmp만 지원합니다.";
+      if (type === 'imageTypeError') {
+        alertText = '이미지 확장자는 jpg, png, bmp만 지원합니다.';
       }
 
       /*  appned  */
@@ -1210,18 +1234,18 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      container.className = "smpChat__dialog__containerLeft";
-      contentsContainer.className = "smpChat__dialog__contentContainerLeft";
-      profile.className = "smpChat__dialog__profile";
-      profileImage.className = "smpChat__dialog__profileImage";
-      content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
-      id.className = "smpChat__dialog__id";
-      span.className = "smpChat__dialog__span";
+      container.className = 'smpChat__dialog__containerLeft';
+      contentsContainer.className = 'smpChat__dialog__contentContainerLeft';
+      profile.className = 'smpChat__dialog__profile';
+      profileImage.className = 'smpChat__dialog__profileImage';
+      content.className = 'smpChat__dialog__content';
+      time.className = 'smpChat__dialog__time';
+      id.className = 'smpChat__dialog__id';
+      span.className = 'smpChat__dialog__span';
 
       /*  set  */
-      time.setAttribute("datetime", createTimeDate());
-      profileImage.src = "http://localhost:5000/smpChat/image?name=smpark.jpg";
+      time.setAttribute('datetime', createTimeDate());
+      profileImage.src = 'http://localhost:5000/smpChat/image?name=smpark.jpg';
 
       /*  function  */
       elapseMessageTime(time);
@@ -1230,11 +1254,11 @@
 
     function drawOfflineMessage(msg) {
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const time = document.createElement("time");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const time = document.createElement('time');
 
       /*  textNode  */
       const offMessage = document.createTextNode(msg);
@@ -1247,13 +1271,13 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      container.className = "smpChat__dialog__containerRight";
-      contentsContainer.className = "smpChat__dialog__contentContainerRight";
-      content.className = "smpChat__dialog__content";
-      time.className = "smpChat__dialog__time";
+      container.className = 'smpChat__dialog__containerRight';
+      contentsContainer.className = 'smpChat__dialog__contentContainerRight';
+      content.className = 'smpChat__dialog__content';
+      time.className = 'smpChat__dialog__time';
 
       /*  set  */
-      time.setAttribute("datetime", createTimeDate());
+      time.setAttribute('datetime', createTimeDate());
 
       /*  function  */
       elapseMessageTime(time);
@@ -1263,17 +1287,17 @@
       const { seq, userId, message, registerTime, roomName, image } = msg;
 
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const profile = document.createElement("div");
-      const profileImage = document.createElement("img");
-      const id = document.createElement("p");
-      const span = document.createElement("span");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const contentImage = document.createElement("img");
-      const time = document.createElement("time");
-      const observe = document.createElement("img");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const profile = document.createElement('div');
+      const profileImage = document.createElement('img');
+      const id = document.createElement('p');
+      const span = document.createElement('span');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const contentImage = document.createElement('img');
+      const time = document.createElement('time');
+      const observe = document.createElement('img');
 
       /*  textNode  */
       const onMessage = document.createTextNode(message);
@@ -1284,18 +1308,18 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      content.className = "smpChat__dialog__content";
-      contentImage.className = "smpChat__dialog__contentImage";
-      time.className = "smpChat__dialog__time";
-      observe.className = "smpChat__dialog__observe";
+      content.className = 'smpChat__dialog__content';
+      contentImage.className = 'smpChat__dialog__contentImage';
+      time.className = 'smpChat__dialog__time';
+      observe.className = 'smpChat__dialog__observe';
 
       /*  set  */
-      time.setAttribute("datetime", registerTime);
+      time.setAttribute('datetime', registerTime);
       container.dataset.seq = seq;
 
       if (image !== null) {
         contentImage.src = `data:image/jpeg;base64,${image}`;
-        contentImage.setAttribute("ondragstart", "return false");
+        contentImage.setAttribute('ondragstart', 'return false');
 
         contentImage.onload = () => scrollBottom(dialog);
       }
@@ -1323,23 +1347,23 @@
         container.appendChild(observe);
 
         /*  className & id   */
-        id.className = "smpChat__dialog__id";
-        profile.className = "smpChat__dialog__profile";
-        profileImage.className = "smpChat__dialog__profileImage";
-        dialog.className = "smpChat__dialog__chatView";
-        container.className = "smpChat__dialog__containerLeft";
+        id.className = 'smpChat__dialog__id';
+        profile.className = 'smpChat__dialog__profile';
+        profileImage.className = 'smpChat__dialog__profileImage';
+        dialog.className = 'smpChat__dialog__chatView';
+        container.className = 'smpChat__dialog__containerLeft';
         contentsContainer.className =
           image !== null
-            ? "smpChat__dialog__imageContentContainerLeft"
-            : "smpChat__dialog__contentContainerLeft";
+            ? 'smpChat__dialog__imageContentContainerLeft'
+            : 'smpChat__dialog__contentContainerLeft';
 
         /*  set  */
         dialog.dataset.id = roomName;
         profileImage.src =
-          msg.userType === "manager"
-            ? "http://localhost:5000/smpChat/image?name=smpark.jpg"
-            : "http://localhost:5000/smpChat/image?name=starProfile.png";
-        profileImage.setAttribute("ondragstart", "return false");
+          msg.userType === 'manager'
+            ? 'http://localhost:5000/smpChat/image?name=smpark.jpg'
+            : 'http://localhost:5000/smpChat/image?name=starProfile.png';
+        profileImage.setAttribute('ondragstart', 'return false');
       }
 
       function userMessage() {
@@ -1355,20 +1379,20 @@
         container.appendChild(contentsContainer);
 
         /*  className & id   */
-        container.className = "smpChat__dialog__containerRight";
+        container.className = 'smpChat__dialog__containerRight';
         contentsContainer.className =
           image !== null
-            ? "smpChat__dialog__imageContentContainerRight"
-            : "smpChat__dialog__contentContainerRight";
+            ? 'smpChat__dialog__imageContentContainerRight'
+            : 'smpChat__dialog__contentContainerRight';
 
         /*  set  */
         if (!msg.observe) {
           observe.src =
-            "http://localhost:5000/smpChat/image?name=greyCheck.png";
+            'http://localhost:5000/smpChat/image?name=greyCheck.png';
         } else {
-          let color = localStorage.getItem("smpchat-user-theme");
+          let color = localStorage.getItem('smpchat-user-theme');
 
-          if (!color) color = "blue";
+          if (!color) color = 'blue';
 
           observe.src = `http://localhost:5000/smpChat/image?name=${color}Check.png`;
         }
@@ -1379,16 +1403,16 @@
       const { seq, userId, message, registerTime, roomName, image } = msg;
 
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const profile = document.createElement("div");
-      const profileImage = document.createElement("img");
-      const id = document.createElement("p");
-      const span = document.createElement("span");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const contentImage = document.createElement("img");
-      const time = document.createElement("time");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const profile = document.createElement('div');
+      const profileImage = document.createElement('img');
+      const id = document.createElement('p');
+      const span = document.createElement('span');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const contentImage = document.createElement('img');
+      const time = document.createElement('time');
 
       const chatView = document.querySelector(
         `.smpChat__dialog__chatView[data-id="${currUserId}"]`
@@ -1407,15 +1431,15 @@
       dialog.prepend(container);
 
       /*  className & id   */
-      content.className = "smpChat__dialog__content";
+      content.className = 'smpChat__dialog__content';
       contentImage.className = `smpChat__dialog__contentImage smpChat__dialog__contentImage_${userId}`;
       time.className = `smpChat__dialog__time smpChat__dialog__time_${userId} smpChat__dialog__time`;
 
       /*  set  */
-      time.setAttribute("datetime", registerTime);
+      time.setAttribute('datetime', registerTime);
       container.dataset.seq = seq;
       profileImage.src =
-        "http://localhost:5000/smpChat/image?name=starProfile.png";
+        'http://localhost:5000/smpChat/image?name=starProfile.png';
 
       if (image !== null) {
         contentImage.src = `data:image/jpeg;base64,${image}`;
@@ -1441,14 +1465,14 @@
         container.appendChild(contentsContainer);
         container.appendChild(time);
         /*  className & id   */
-        id.className = "smpChat__dialog__id";
-        profile.className = "smpChat__dialog__profile";
-        profileImage.className = "smpChat__dialog__profileImage";
-        container.className = "smpChat__dialog__containerLeft";
+        id.className = 'smpChat__dialog__id';
+        profile.className = 'smpChat__dialog__profile';
+        profileImage.className = 'smpChat__dialog__profileImage';
+        container.className = 'smpChat__dialog__containerLeft';
         contentsContainer.className =
           image !== null
-            ? "smpChat__dialog__imageContentContainerLeft"
-            : "smpChat__dialog__contentContainerLeft";
+            ? 'smpChat__dialog__imageContentContainerLeft'
+            : 'smpChat__dialog__contentContainerLeft';
       }
 
       function userMessage() {
@@ -1462,32 +1486,32 @@
         content.appendChild(onMessage);
         container.appendChild(contentsContainer);
         /*  className & id   */
-        container.className = "smpChat__dialog__containerRight";
+        container.className = 'smpChat__dialog__containerRight';
         contentsContainer.className =
           image !== null
-            ? "smpChat__dialog__imageContentContainerRight"
-            : "smpChat__dialog__contentContainerRight";
+            ? 'smpChat__dialog__imageContentContainerRight'
+            : 'smpChat__dialog__contentContainerRight';
       }
     }
 
     function drawSystemMessage(state, msg = false) {
       /*  layout  */
-      const dialog = document.querySelector(".smpChat__dialog__chatView");
-      const container = document.createElement("div");
-      const content = document.createElement("p");
+      const dialog = document.querySelector('.smpChat__dialog__chatView');
+      const container = document.createElement('div');
+      const content = document.createElement('p');
 
       /*  textNode  */
       let systemMsgText = null;
 
-      if (state === "on" && !msg) {
-        systemMsgText = "서버에 연결되었습니다. [온라인]";
+      if (state === 'on' && !msg) {
+        systemMsgText = '서버에 연결되었습니다. [온라인]';
       }
 
-      if (state === "off" && !msg) {
-        systemMsgText = "서버에 연결되지 않았습니다. [오프라인]";
+      if (state === 'off' && !msg) {
+        systemMsgText = '서버에 연결되지 않았습니다. [오프라인]';
       }
 
-      if (state === "on" && msg) systemMsgText = msg;
+      if (state === 'on' && msg) systemMsgText = msg;
 
       /*  appned  */
       content.textContent = systemMsgText;
@@ -1495,8 +1519,8 @@
       dialog.appendChild(container);
 
       /*  className & id   */
-      container.className = "smpChat__dialog__systemBar";
-      content.className = "smpChat__dialog__systemMsg";
+      container.className = 'smpChat__dialog__systemBar';
+      content.className = 'smpChat__dialog__systemMsg';
 
       /*  function  */
       scrollBottom(dialog);
@@ -1506,10 +1530,10 @@
       const { message, registerTime, roomName } = logs;
 
       /*  layout  */
-      const connect = document.querySelector(".smpChat__connect__list");
-      const contentsContainer = document.createElement("div");
-      const content = document.createElement("p");
-      const time = document.createElement("time");
+      const connect = document.querySelector('.smpChat__connect__list');
+      const contentsContainer = document.createElement('div');
+      const content = document.createElement('p');
+      const time = document.createElement('time');
       const container = document.querySelector(
         `.smpChat__connect__container[data-id="${roomName}"]`
       );
@@ -1528,7 +1552,7 @@
         content.textContent = message;
 
         /*  set  */
-        time.setAttribute("datetime", registerTime);
+        time.setAttribute('datetime', registerTime);
 
         /*  function  */
         elapseMessageTime(time);
@@ -1536,10 +1560,10 @@
 
       function createPreview() {
         /* layout */
-        const container = document.createElement("div");
-        const id = document.createElement("p");
-        const previewExit = document.createElement("img");
-        const previewAlarm = document.createElement("p");
+        const container = document.createElement('div');
+        const id = document.createElement('p');
+        const previewExit = document.createElement('img');
+        const previewAlarm = document.createElement('p');
 
         /*  textNode  */
         const idText = document.createTextNode(roomName);
@@ -1557,13 +1581,13 @@
         connect.appendChild(container);
 
         /*  className & id   */
-        id.className = "smpChat__connect__id";
-        time.className = "smpChat__connect__time";
-        content.className = "smpChat__connect__content";
-        container.className = "smpChat__connect__container";
-        previewExit.className = "smpChat__connect_previewExit";
-        previewAlarm.className = "smpChat__connect_previewAlarm";
-        contentsContainer.className = "smpChat__connect__contentsContainer";
+        id.className = 'smpChat__connect__id';
+        time.className = 'smpChat__connect__time';
+        content.className = 'smpChat__connect__content';
+        container.className = 'smpChat__connect__container';
+        previewExit.className = 'smpChat__connect_previewExit';
+        previewAlarm.className = 'smpChat__connect_previewAlarm';
+        contentsContainer.className = 'smpChat__connect__contentsContainer';
 
         /*  set  */
         previewAlarm.dataset.id = roomName;
@@ -1572,7 +1596,7 @@
         content.dataset.id = roomName;
         time.dataset.id = roomName;
         previewExit.src = `http://localhost:5000/smpChat/image?name=greyXbtn.png`;
-        time.setAttribute("datetime", registerTime);
+        time.setAttribute('datetime', registerTime);
 
         /*  function  */
         elapseMessageTime(time);
@@ -1603,7 +1627,7 @@
       const minutesTime = Math.floor(elapseTime / (1000 * 60));
       const hourTime = Math.floor(elapseTime / (1000 * 60 * 60));
       const dayTime = Math.floor(elapseTime / (1000 * 60 * 60 * 24));
-      let word = "방금 전";
+      let word = '방금 전';
 
       if (minutesTime >= 1 && hourTime < 1) word = `${minutesTime}분 전`;
 
@@ -1622,7 +1646,7 @@
   };
 
   const refreshConn = function refleshServerConnect(socket, state) {
-    if (state === "on" || state === "refresh") {
+    if (state === 'on' || state === 'refresh') {
       connServer.on(socket);
 
       socketSend(socket).serverSwitch(state);
@@ -1630,7 +1654,7 @@
       return;
     }
 
-    if (state === "off") {
+    if (state === 'off') {
       contentsHTML.drawNotice();
       contentsHTML.drawSystemMessage(state);
 
@@ -1647,7 +1671,7 @@
       if (!checkbox) return;
 
       checkbox.addEventListener(
-        "click",
+        'click',
         connectServerBtnClickHandler(checkbox, socket),
         false
       );
@@ -1655,18 +1679,20 @@
 
     function connectServerBtnClickHandler(checkbox, socket) {
       return () => {
-        const state = checkbox.checked ? "on" : "off";
+        const state = checkbox.checked ? 'on' : 'off';
 
         if (!checkbox.checked) {
           socketSend(socket).serverSwitch(state);
 
-          const list = document.querySelector(".smpChat__connect__list");
+          const list = document.querySelector('.smpChat__connect__list');
 
-          while (list.hasChildNodes()) {
-            list.removeChild(list.firstChild);
+          if (list) {
+            while (list.hasChildNodes()) {
+              list.removeChild(list.firstChild);
+            }
+
+            return;
           }
-
-          return;
         }
 
         connServer.on(socket);
@@ -1687,96 +1713,99 @@
 
   const changeSwitch = function changeSwitchState(state) {
     const checkbox =
-      document.querySelector(".smpChat__connect__switchInput") ||
-      document.querySelector(".smpChat__dialog__switchInput");
+      document.querySelector('.smpChat__connect__switchInput') ||
+      document.querySelector('.smpChat__dialog__switchInput');
 
-    if (state === "refresh") state = "on";
+    if (state === 'refresh') state = 'on';
 
-    checkbox.checked = state === "on" ? true : false;
+    checkbox.checked = state === 'on' ? true : false;
   };
 
   const joinRoom = (function clickPreviewJoinRoom() {
     return (socket, type) => {
-      if (type !== "manager") return;
+      if (type !== 'manager') return;
 
-      const list = document.querySelector(".smpChat__connect__list");
+      const list = document.querySelector('.smpChat__connect__list');
 
-      list.addEventListener("click", joinRoomOnClickHandler(socket));
+      list.addEventListener('click', joinRoomOnClickHandler(socket));
     };
 
     function joinRoomOnClickHandler(socket) {
       return (e) => {
-        const container = e.target.closest(".smpChat__connect__container");
+        const container = e.target.closest('.smpChat__connect__container');
 
-        if (container) {
-          const target = e.target;
-          const id = container.dataset.id;
-          const alarm = document.querySelector(
-            `.smpChat__connect_previewAlarm[data-id="${id}"]`
-          );
-          const leaveBtn = document.querySelector(
-            `.smpChat__connect_previewExit[data-id="${id}"]`
-          );
+        if (!container) return;
 
-          if (target === leaveBtn) return;
+        const target = e.target;
+        const id = container.dataset.id;
+        const alarm = document.querySelector(
+          `.smpChat__connect_previewAlarm[data-id="${id}"]`
+        );
+        const leaveBtn = document.querySelector(
+          `.smpChat__connect_previewExit[data-id="${id}"]`
+        );
 
-          if (alarm) {
-            alarm.classList.remove("view");
-            alarm.textContent = 0;
-          }
+        if (target === leaveBtn) return;
 
-          socketSend(socket).join(id);
-          socketSend(socket).observe(id);
+        if (alarm) {
+          alarm.classList.remove('view');
+          alarm.textContent = 0;
         }
+
+        socketSend(socket).join(id);
+        socketSend(socket).observe(id);
       };
     }
   })();
 
   const leaveRoom = (function clickPreviewLeaveRoom() {
     return (socket, type) => {
-      if (type !== "manager") return;
+      if (type !== 'manager') return;
 
-      const list = document.querySelector(".smpChat__connect__list");
+      const list = document.querySelector('.smpChat__connect__list');
 
-      list.addEventListener("click", leaveRoomOnClickHandler(socket));
+      list && list.addEventListener('click', leaveRoomOnClickHandler(socket));
     };
 
     function leaveRoomOnClickHandler(socket) {
       return (e) => {
-        const container = e.target.closest(".smpChat__connect__container");
+        const container = e.target.closest('.smpChat__connect__container');
 
-        if (container) {
-          const target = e.target;
-          const id = container.dataset.id;
-          const leaveBtn = document.querySelector(
-            `.smpChat__connect_previewExit[data-id="${id}"]`
-          );
-          const chatView = document.querySelector(
-            `.smpChat__dialog__chatView[data-id="${id}"]`
-          );
+        if (!container) return;
 
-          if (target === leaveBtn) {
-            if (chatView) {
-              if (confirm("채팅방을 나가시겠습니까?")) {
-                container.remove();
+        const target = e.target;
+        const id = container.dataset.id;
+        const leaveBtn = document.querySelector(
+          `.smpChat__connect_previewExit[data-id="${id}"]`
+        );
+        const chatView = document.querySelector(
+          `.smpChat__dialog__chatView[data-id="${id}"]`
+        );
 
-                while (chatView.hasChildNodes()) {
-                  chatView.removeChild(chatView.firstChild);
-                }
+        if (target !== leaveBtn) return;
 
-                socketSend(socket).leave(id);
-              }
-              return;
-            }
+        if (chatView) {
+          if (!confirm('채팅방을 나가시겠습니까?')) return;
 
-            if (!chatView) {
-              if (confirm("채팅 요청목록을 지우시겠습니까?")) {
-                container.remove();
+          container.remove();
 
-                return;
-              }
-            }
+          while (chatView.hasChildNodes()) {
+            chatView.removeChild(chatView.firstChild);
           }
+
+          socketSend(socket).leave(id);
+
+          return;
+        }
+
+        if (!chatView) {
+          if (!confirm('채팅 요청목록을 지우시겠습니까?')) return;
+
+          container.remove();
+
+          socketSend(socket).leave(id);
+
+          return;
         }
       };
     }
@@ -1784,11 +1813,11 @@
 
   const loadScroll = (function loadDialogScroll() {
     return (socket) => {
-      const chatView = document.querySelector(".smpChat__dialog__chatView");
+      const chatView = document.querySelector('.smpChat__dialog__chatView');
       let timer = 0;
 
       chatView.addEventListener(
-        "scroll",
+        'scroll',
         loadDialogScrollHandler(socket, timer),
         false
       );
@@ -1800,8 +1829,8 @@
 
         timer = setTimeout(function () {
           const checkbox =
-            document.querySelector(".smpChat__dialog__switchInput") ||
-            document.querySelector(".smpChat__connect__switchInput");
+            document.querySelector('.smpChat__dialog__switchInput') ||
+            document.querySelector('.smpChat__connect__switchInput');
 
           if (checkbox.checked) {
             const currentScrollY = e.target.scrollTop;
@@ -1811,7 +1840,7 @@
 
             if (
               currentScrollY === 0 &&
-              firstLog.className !== "smpChat__dialog__systemBar"
+              firstLog.className !== 'smpChat__dialog__systemBar'
             ) {
               const chatSeq = firstLog.dataset.seq;
 
@@ -1827,14 +1856,14 @@
 
   const sendImage = (function sendImageProcess() {
     return (socket) => {
-      const input = document.querySelector(".smpChat__dialog__addInput");
-      const chatView = document.querySelector(".smpChat__dialog__chatView");
+      const input = document.querySelector('.smpChat__dialog__addInput');
+      const chatView = document.querySelector('.smpChat__dialog__chatView');
 
-      input.addEventListener("change", plusClickHandler(socket), false);
+      input.addEventListener('change', plusClickHandler(socket), false);
 
-      chatView.addEventListener("dragover", overViewHandler(chatView), false);
-      chatView.addEventListener("dragleave", leaveViewHandler(chatView), false);
-      chatView.addEventListener("drop", dropHandler(chatView, socket), false);
+      chatView.addEventListener('dragover', overViewHandler(chatView), false);
+      chatView.addEventListener('dragleave', leaveViewHandler(chatView), false);
+      chatView.addEventListener('drop', dropHandler(chatView, socket), false);
     };
 
     function plusClickHandler(socket) {
@@ -1850,7 +1879,7 @@
 
       const check = checkImageRule(image);
 
-      if (check !== "ok") return;
+      if (check !== 'ok') return;
 
       const reader = new FileReader();
       const name = image.name;
@@ -1866,28 +1895,28 @@
 
     function checkImageRule(image) {
       if (
-        image.type !== "image/png" &&
-        image.type !== "image/jpg" &&
-        image.type !== "image/jpeg" &&
-        image.type !== "image/bmp"
+        image.type !== 'image/png' &&
+        image.type !== 'image/jpg' &&
+        image.type !== 'image/jpeg' &&
+        image.type !== 'image/bmp'
       ) {
-        contentsHTML.drawAlert("imageTypeError");
+        contentsHTML.drawAlert('imageTypeError');
         return;
       }
 
-      if (image.size > "1048576") {
-        contentsHTML.drawAlert("imageSizeOver");
+      if (image.size > '1048576') {
+        contentsHTML.drawAlert('imageSizeOver');
         return;
       }
 
-      return "ok";
+      return 'ok';
     }
 
     function overViewHandler(chatView) {
       return (e) => {
         e.preventDefault();
 
-        chatView.classList.add("smpChat__dialog__dottedLine");
+        chatView.classList.add('smpChat__dialog__dottedLine');
       };
     }
 
@@ -1895,7 +1924,7 @@
       return (e) => {
         e.preventDefault();
 
-        chatView.classList.remove("smpChat__dialog__dottedLine");
+        chatView.classList.remove('smpChat__dialog__dottedLine');
       };
     }
 
@@ -1903,7 +1932,7 @@
       return (e) => {
         e.preventDefault();
 
-        chatView.classList.remove("smpChat__dialog__dottedLine");
+        chatView.classList.remove('smpChat__dialog__dottedLine');
 
         const dataTrans = e.dataTransfer;
         const files = dataTrans.files;
@@ -1915,49 +1944,49 @@
 
   const changeTheme = (function changeSmpChatTheme() {
     return () => {
-      const theme = document.querySelector(".smpChat__section__theme");
-      let themeColor = localStorage.getItem("smpchat-user-theme");
+      const theme = document.querySelector('.smpChat__section__theme');
+      let themeColor = localStorage.getItem('smpchat-user-theme');
 
-      if (!themeColor) themeColor = "blue";
+      if (!themeColor) themeColor = 'blue';
 
-      if (themeColor === "red") {
-        theme.src = "http://localhost:5000/smpChat/image?name=blueFlower.png";
+      if (themeColor === 'red') {
+        theme.src = 'http://localhost:5000/smpChat/image?name=blueFlower.png';
       }
 
-      document.documentElement.setAttribute("smpchat-user-theme", themeColor);
+      document.documentElement.setAttribute('smpchat-user-theme', themeColor);
 
-      theme.addEventListener("click", themeClickHandler, false);
+      theme.addEventListener('click', themeClickHandler, false);
     };
 
     function themeClickHandler(e) {
       const theme = e.target;
-      const send = document.querySelector(".smpChat__dialog__sendImg");
-      let currColor = localStorage.getItem("smpchat-user-theme");
+      const send = document.querySelector('.smpChat__dialog__sendImg');
+      let currColor = localStorage.getItem('smpchat-user-theme');
 
-      if (!currColor) currColor = "blue";
+      if (!currColor) currColor = 'blue';
 
-      if (currColor === "blue") {
-        document.documentElement.setAttribute("smpchat-user-theme", "red");
+      if (currColor === 'blue') {
+        document.documentElement.setAttribute('smpchat-user-theme', 'red');
 
-        theme.src = "http://localhost:5000/smpChat/image?name=blueFlower.png";
-        send.src = "http://localhost:5000/smpChat/image?name=redSend.png";
+        theme.src = 'http://localhost:5000/smpChat/image?name=blueFlower.png';
+        send.src = 'http://localhost:5000/smpChat/image?name=redSend.png';
 
-        changeReadIcon("red");
+        changeReadIcon('red');
 
-        localStorage.setItem("smpchat-user-theme", "red");
+        localStorage.setItem('smpchat-user-theme', 'red');
 
         return;
       }
 
-      if (currColor === "red") {
-        document.documentElement.setAttribute("smpchat-user-theme", "blue");
+      if (currColor === 'red') {
+        document.documentElement.setAttribute('smpchat-user-theme', 'blue');
 
-        theme.src = "http://localhost:5000/smpChat/image?name=redFlower.png";
-        send.src = "http://localhost:5000/smpChat/image?name=blueSend.png";
+        theme.src = 'http://localhost:5000/smpChat/image?name=redFlower.png';
+        send.src = 'http://localhost:5000/smpChat/image?name=blueSend.png';
 
-        changeReadIcon("blue");
+        changeReadIcon('blue');
 
-        localStorage.setItem("smpchat-user-theme", "blue");
+        localStorage.setItem('smpchat-user-theme', 'blue');
 
         return;
       }
@@ -1974,7 +2003,7 @@
       let startTime = 0;
       let opacitySwitch = true;
 
-      container.classList.add("effect");
+      container.classList.add('effect');
 
       requestAnimationFrame(effectAlarmPreview);
 
@@ -2011,7 +2040,7 @@
 
       function getRootColorRGB() {
         const domStyle = getComputedStyle(document.documentElement);
-        const color = domStyle.getPropertyValue("--smpchat_color_navSubBarRGB");
+        const color = domStyle.getPropertyValue('--smpchat_color_navSubBarRGB');
 
         return color.substring(0, color.length - 1);
       }
@@ -2019,15 +2048,15 @@
   };
 
   const stopAlarm = function stopPreviewAlarm(type) {
-    if (type === "client") return;
+    if (type === 'client') return;
 
-    const list = document.querySelector(".smpChat__connect__list");
+    const list = document.querySelector('.smpChat__connect__list');
 
-    list.addEventListener("click", stopAlarmOnClickHandler);
+    list.addEventListener('click', stopAlarmOnClickHandler);
 
     function stopAlarmOnClickHandler(e) {
       const target = e.target;
-      const container = target.closest(".smpChat__connect__container");
+      const container = target.closest('.smpChat__connect__container');
       const id = container.dataset.id;
       const exitBtn = document.querySelector(
         `.smpChat__connect_previewExit[data-id="${id}"]`
@@ -2036,8 +2065,8 @@
       if (target === exitBtn) return;
 
       if (container) {
-        container.style.outline = "none";
-        container.style.boxShadow = "none";
+        container.style.outline = 'none';
+        container.style.boxShadow = 'none';
         const previewRaf = container.dataset.raf;
 
         cancelAnimationFrame(previewRaf);
@@ -2048,18 +2077,18 @@
   const effectSelect = function effectPreviewSelect(roomName) {
     if (!roomName) return;
 
-    const list = document.querySelector(".smpChat__connect__list");
-    const container = document.querySelectorAll(".smpChat__connect__container");
+    const list = document.querySelector('.smpChat__connect__list');
+    const container = document.querySelectorAll('.smpChat__connect__container');
 
-    container.forEach((dom) => dom.classList.remove("select"));
+    container.forEach((dom) => dom.classList.remove('select'));
 
     const clickedDom = document.querySelector(
       `.smpChat__connect__container[data-id="${roomName}"]`
     );
 
     if (clickedDom) {
-      clickedDom.classList.remove("effect");
-      clickedDom.classList.add("select");
+      clickedDom.classList.remove('effect');
+      clickedDom.classList.add('select');
 
       list.insertBefore(clickedDom, list.firstChild);
     }
@@ -2070,12 +2099,12 @@
       `.smpChat__dialog__chatView[data-id="${roomName}"]`
     );
 
-    const icon = document.querySelector(".smpChatIcon");
+    const icon = document.querySelector('.smpChatIcon');
 
     if (!chatView) return;
 
     const observer = new IntersectionObserver((entries, options) => {
-      const active = icon.classList.contains("smp_active");
+      const active = icon.classList.contains('smp_active');
 
       if (!active) return;
 
@@ -2088,16 +2117,16 @@
   };
 
   const changeReadIcon = function changeMessageReadIcon(color = null) {
-    const observe = document.querySelectorAll(".smpChat__dialog__observe");
+    const observe = document.querySelectorAll('.smpChat__dialog__observe');
 
     const arrObserve = [...observe];
 
     arrObserve.map((dom) => {
-      const src = dom.getAttribute("src");
+      const src = dom.getAttribute('src');
 
       if (!src) return;
 
-      const index = src.indexOf("greyCheck");
+      const index = src.indexOf('greyCheck');
 
       if (index === -1 && color) {
         dom.src = `http://localhost:5000/smpChat/image?name=${color}Check.png`;
@@ -2107,10 +2136,10 @@
 
       const srcName = src.substring(index, src.length - 4);
 
-      if (srcName === "greyCheck" && !color) {
-        let themeColor = localStorage.getItem("smpchat-user-theme");
+      if (srcName === 'greyCheck' && !color) {
+        let themeColor = localStorage.getItem('smpchat-user-theme');
 
-        if (!themeColor) themeColor = "blue";
+        if (!themeColor) themeColor = 'blue';
         dom.src = `http://localhost:5000/smpChat/image?name=${themeColor}Check.png`;
 
         return;
@@ -2125,8 +2154,8 @@
     let select = false;
     let effect = false;
 
-    if (currContainer.classList.contains("select")) select = true;
-    if (currContainer.classList.contains("effect")) effect = true;
+    if (currContainer.classList.contains('select')) select = true;
+    if (currContainer.classList.contains('effect')) effect = true;
 
     return { select, effect };
   };
@@ -2143,7 +2172,7 @@
     return drawAlarmApi;
 
     function messagePreview(count, roomName) {
-      const section = document.querySelector(".smpChat__section");
+      const section = document.querySelector('.smpChat__section');
       const previewAlarm = document.querySelector(
         `.smpChat__connect_previewAlarm[data-id="${roomName}"]`
       );
@@ -2151,10 +2180,10 @@
         `.smpChat__dialog__chatView[data-id="${roomName}"]`
       );
 
-      if (typeof count === "number" && count > 0) {
-        if (chatView && section.classList.contains("smp_active")) return;
+      if (typeof count === 'number' && count > 0) {
+        if (chatView && section.classList.contains('smp_active')) return;
 
-        previewAlarm.classList.add("view");
+        previewAlarm.classList.add('view');
 
         previewAlarm.textContent = count;
       }
@@ -2168,10 +2197,10 @@
         `.smpChat__dialog__chatView[data-id="${roomName}"]`
       );
 
-      if (typeof count === "object" && !chatView) {
+      if (typeof count === 'object' && !chatView) {
         for (id in count) {
           if (id === roomName && count[id] > 0) {
-            previewAlarm.classList.add("view");
+            previewAlarm.classList.add('view');
             previewAlarm.textContent = count[id];
           }
         }
@@ -2179,11 +2208,11 @@
     }
 
     function icon(count) {
-      const iconAlarm = document.querySelector(".smpChat__message__alarm");
+      const iconAlarm = document.querySelector('.smpChat__message__alarm');
 
-      if (!iconAlarm || typeof count !== "number" || count <= 0) return;
+      if (!iconAlarm || typeof count !== 'number' || count <= 0) return;
 
-      iconAlarm.classList.add("view");
+      iconAlarm.classList.add('view');
 
       let alarmCount = iconAlarm.textContent;
 
@@ -2195,18 +2224,18 @@
     }
 
     function clickIconHide() {
-      const icon = document.querySelector(".smpChatIcon");
+      const icon = document.querySelector('.smpChatIcon');
 
-      icon.addEventListener("click", iconHideOnclickHandler, false);
+      icon.addEventListener('click', iconHideOnclickHandler, false);
 
       function iconHideOnclickHandler(e) {
         const container = document.querySelectorAll(
-          ".smpChat__connect__container"
+          '.smpChat__connect__container'
         );
         const arrContainer = [...container];
 
         arrContainer.map((dom) => {
-          if (dom.classList.contains("select")) {
+          if (dom.classList.contains('select')) {
             const id = dom.dataset.id;
             const alarm = document.querySelector(
               `.smpChat__connect_previewAlarm[data-id="${id}"]`
@@ -2214,28 +2243,28 @@
 
             alarm.textContent = 0;
 
-            alarm.classList.remove("view");
+            alarm.classList.remove('view');
           }
         });
       }
     }
 
     function clickCloseReDraw() {
-      const close = document.querySelector(".smpChat__section__close");
-      const iconAlarm = document.querySelector(".smpChat__message__alarm");
+      const close = document.querySelector('.smpChat__section__close');
+      const iconAlarm = document.querySelector('.smpChat__message__alarm');
 
-      close.addEventListener("click", closeReDrawOnClickHandler, false);
+      close.addEventListener('click', closeReDrawOnClickHandler, false);
 
       function closeReDrawOnClickHandler(e) {
         const previewAlarm = document.querySelectorAll(
-          ".smpChat__connect_previewAlarm"
+          '.smpChat__connect_previewAlarm'
         );
         let count = 0;
 
         if (!previewAlarm) {
           iconAlarm.textContent = 0;
 
-          iconAlarm.classList.remove("view");
+          iconAlarm.classList.remove('view');
 
           return;
         }
@@ -2246,7 +2275,7 @@
           if (dom.textContent) {
             const alarmCount = parseInt(dom.textContent);
 
-            if (typeof alarmCount === "number" && alarmCount > 0) {
+            if (typeof alarmCount === 'number' && alarmCount > 0) {
               count = count + alarmCount;
             }
           }
@@ -2254,7 +2283,7 @@
 
         count > 0
           ? (iconAlarm.textContent = count)
-          : iconAlarm.classList.remove("view");
+          : iconAlarm.classList.remove('view');
 
         return;
       }
@@ -2265,7 +2294,7 @@
     constructor(message) {
       super(message);
       this.message = message;
-      this.name = "SmpChatError";
+      this.name = 'SmpChatError';
     }
 
     static errHandle(e) {

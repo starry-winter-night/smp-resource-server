@@ -19,7 +19,7 @@ import {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: ["https://smpark.dev", "http://localhost:3000"],
+    origin: ["https://smpark.dev", "http://localhost:4000", "http://localhost:3000"],
     methods: ["GET", "POST"],
   },
 });
