@@ -3,10 +3,11 @@
   const smpChat = {
     setting: {
       chatService: class ChatService {
-        constructor(clientId, apiKey, socketIo) {
+        constructor(clientId, apiKey, socketIo, position) {
           this.clientId = clientId;
           this.apiKey = apiKey;
           this.socketIo = socketIo;
+          this.position = position;
         }
 
         async init(userId, domId) {
@@ -25,6 +26,8 @@
             resetHTML.sectionIcon(this.args);
 
             drawChatHTML(this.args, data.type);
+
+            resize(this.position);
 
             const socket = this.socketIo
               ? await socketConn(this.args, this.socketIo)
@@ -450,13 +453,80 @@
     });
   };
 
+  const resize = function mobileSize(position) {
+    const smpChatSection = document.querySelector('#smpChat_clientSection');
+    const smpChatIcon = document.querySelector('.smpChatIcon');
+    const smpChatClose = document.querySelector('.smpChat__section__close');
+    const smpChat = document.querySelector('.smpChat');
+
+    if (smpChat) {
+      smpChat.style.top = position.top;
+      smpChat.style.bottom = position.bottom;
+      smpChat.style.left = position.left;
+      smpChat.style.right = position.right;
+    }
+
+    smpChatIcon.addEventListener('click', () => {
+      smpChat.focus();
+
+      const innerWidth = window.innerWidth;
+      const innerHeight = window.innerHeight;
+
+      smpChatClose.addEventListener('click', () => {
+        smpChat.style.top = position.top;
+        smpChat.style.bottom = position.bottom;
+        smpChat.style.left = position.left;
+        smpChat.style.right = position.right;
+      });
+
+      const web = ['win16', 'win32', 'win64', 'mac'];
+      let platform = 'mobile';
+
+      web.forEach((item) => {
+        const exist = item.indexOf(navigator.platform.toLowerCase());
+
+        if (exist) {
+          platform = 'web';
+        }
+      });
+
+      smpChat.style.top = '0px';
+      smpChat.style.bottom = '0px';
+      smpChat.style.left = '0px';
+      smpChat.style.right = '0px';
+
+      if (innerWidth < 451) {
+        const smpChatSection = document.querySelector('#smpChat_clientSection');
+        const smpChatDialog = document.querySelector(
+          '.smpChat__section__dialog'
+        );
+        const smpChatChatView = document.querySelector(
+          '.smpChat__dialog__chatView'
+        );
+        const smpChatContents = document.querySelector(
+          '.smpChat__section__contents'
+        );
+
+        smpChatSection.style.width = `${innerWidth}px`;
+        smpChatDialog.style.width = `${innerWidth - 10}px`;
+
+        smpChatSection.style.maxHeight = `${innerHeight}px`;
+        smpChatDialog.style.maxHeight = `${innerHeight - 45}px`;
+        smpChatContents.style.height = `${innerHeight - 35}px`;
+        smpChatChatView.style.maxHeight = `${innerHeight - 140}px`;
+        smpChatChatView.style.height = `${innerHeight - 140}px`;
+        smpChatChatView.style.minHeight = `${innerHeight - 320}px`;
+      }
+    });
+  };
+
   const drawChatHTML = function drawChatHTMLByType({ domId }, type) {
     type === 'manager' ? drawManagerHTML(domId) : drawClientHTML(domId);
     toggleChatView();
     changeDialogAreaHeight();
 
     function drawManagerHTML(domId) {
-      const smpChatLayout = document.getElementById(domId);
+      const smpChatLayout = document.querySelect(`.${domId}`);
 
       /*****************************  layout *****************************/
       /* common */
@@ -641,7 +711,7 @@
       dialogChatAddInput.name = 'smp_chat_addImg';
     }
     function drawClientHTML(domId) {
-      const smpChatLayout = document.getElementById(domId);
+      const smpChatLayout = document.querySelector(`.${domId}`);
 
       /*****************************  layout *****************************/
       /* common */
@@ -681,7 +751,9 @@
       const logoText = document.createTextNode('smpchat');
 
       /* dialog */
-      const infoText = document.createTextNode('Web Developer smPark 채팅하기');
+      const infoText = document.createTextNode(
+        'Beta 1.0 version - smpark all rights reserved'
+      );
       const connSwitchOff = document.createTextNode('OFF');
       const connSwitchOn = document.createTextNode('ON');
 
@@ -899,19 +971,13 @@
       }
 
       function changeScrollMaxHeight(dom) {
-        const maxHeight = removeStringWord(getStyleValue(dom, 'max-height'));
+        const maxHeight = removeStringWord(getStyle(dom, 'max-height'));
 
         dom.style.overflowY =
           dom.offsetHeight >= maxHeight ? 'scroll' : 'hidden';
 
         function removeStringWord(str) {
           return Number(str.replace(/[^0-9]/g, ''));
-        }
-
-        function getStyleValue(dom, propName) {
-          const style = window.getComputedStyle(dom);
-
-          return style.getPropertyValue(propName);
         }
       }
     }
@@ -968,9 +1034,9 @@
           scrollBottom(arg.chatView);
 
           arg.message.value = '';
-          arg.message.style.height = '40px';
-          arg.footer.style.height = '60px';
-          arg.chatView.style.height = '540px';
+          arg.message.style.height = getStyle(arg.footer, 'height');
+          arg.footer.style.height = getStyle(arg.footer, 'height');
+          arg.chatView.style.height = getStyle(arg.chatView, 'max-height');
 
           e.preventDefault();
         }
@@ -1102,7 +1168,7 @@
             </br>우측상단 버튼을 클릭시 서버와 연결됩니다. 
             </br>메시지 입력 시 컨트롤 + 엔터키를 통해 줄 바꿈 할 수 있습니다. 
             </br>메시지 입력 후 엔터 또는 우측하단 아이콘 클릭 시 전송됩니다. 
-            </br>좌측하단 플러스 아이콘으로 이미지를 보낼 수 있습니다.(1MB 이하) 
+            </br>좌측하단 플러스 아이콘 또는 드래그를 통해 이미지를 보낼 수 있습니다.(1MB 이하) 
             </br>서버 연결 전 "깃허브" 또는 "이메일"을 입력하시면 해당 링크를 얻을 수 있습니다.
             </br>서버 연결 전 메시지는 저장되지 않으며 새로고침 또는 서버 연결 시 삭제됩니다.
             </br><b>[채팅운영시간]</b></br>평일 10:00 ~ 18:00 
@@ -1992,6 +2058,13 @@
       }
     }
   })();
+
+  const getStyle = function getComputedStyle(dom, style) {
+    const styles = window.getComputedStyle(dom);
+    const attribute = styles.getPropertyValue(style);
+
+    return attribute;
+  };
 
   const alarmPreview = function alarmNewPreview(check, { roomName, observe }) {
     if (!check.select && !check.effect && !observe) {
