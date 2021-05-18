@@ -454,7 +454,6 @@
   };
 
   const resize = function mobileSize(position) {
-    const smpChatSection = document.querySelector('#smpChat_clientSection');
     const smpChatIcon = document.querySelector('.smpChatIcon');
     const smpChatClose = document.querySelector('.smpChat__section__close');
     const smpChat = document.querySelector('.smpChat');
@@ -467,10 +466,18 @@
     }
 
     smpChatIcon.addEventListener('click', () => {
-      smpChat.focus();
+      changeSmpChatMobileSize();
+    });
 
+    window.addEventListener('resize', function () {
+      changeSmpChatMobileSize();
+    });
+
+    function changeSmpChatMobileSize() {
       const innerWidth = window.innerWidth;
       const innerHeight = window.innerHeight;
+
+      smpChat.focus();
 
       smpChatClose.addEventListener('click', () => {
         smpChat.style.top = position.top;
@@ -479,23 +486,12 @@
         smpChat.style.right = position.right;
       });
 
-      const web = ['win16', 'win32', 'win64', 'mac'];
-      let platform = 'mobile';
-
-      web.forEach((item) => {
-        const exist = item.indexOf(navigator.platform.toLowerCase());
-
-        if (exist) {
-          platform = 'web';
-        }
-      });
-
-      smpChat.style.top = '0px';
-      smpChat.style.bottom = '0px';
-      smpChat.style.left = '0px';
-      smpChat.style.right = '0px';
-
       if (innerWidth < 451) {
+        smpChat.style.top = '0px';
+        smpChat.style.bottom = '0px';
+        smpChat.style.left = '0px';
+        smpChat.style.right = '0px';
+
         const smpChatSection = document.querySelector('#smpChat_clientSection');
         const smpChatDialog = document.querySelector(
           '.smpChat__section__dialog'
@@ -516,8 +512,26 @@
         smpChatChatView.style.maxHeight = `${innerHeight - 140}px`;
         smpChatChatView.style.height = `${innerHeight - 140}px`;
         smpChatChatView.style.minHeight = `${innerHeight - 320}px`;
+        
+      } else {
+        const web = ['win16', 'win32', 'win64', 'mac'];
+        let platform = 'mobile';
+
+        web.forEach((item) => {
+          const exist = item.indexOf(navigator.platform.toLowerCase());
+
+          if (exist) {
+            platform = 'web';
+          }
+        });
+
+        // width가 넓은 mobile 위치 처리
+        if (platform === 'mobile') {
+          smpChat.style.top = '0px';
+          smpChat.style.left = '0px';
+        }
       }
-    });
+    }
   };
 
   const drawChatHTML = function drawChatHTMLByType({ domId }, type) {

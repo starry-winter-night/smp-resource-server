@@ -787,6 +787,7 @@
   max-height: 240px;
   width: 100%;
   position: relative;
+  padding-bottom: 5px;
 }
 
 .smpChat__dialog__addImg {
@@ -959,5 +960,9 @@
   .smpChat__dialog__sendImg {
     width: 40px;
     height: 40px;
+  }
+
+  .smpChat__dialog__footer {
+    padding-bottom: 0;
   }
 }
