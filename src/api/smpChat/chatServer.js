@@ -1,6 +1,6 @@
-import { Server } from "socket.io";
-import { httpServer } from "../../config/chatServer";
-import { checkDuplicateUser } from "../../services/chat/chat.functions.js";
+import { Server } from 'socket.io';
+import { httpServer } from '../../config/chatServer';
+import { checkDuplicateUser } from '../../services/chat/chat.functions.js';
 import {
   verifyManagerInfo,
   judgeUserType,
@@ -15,12 +15,16 @@ import {
   observeMessageCheck,
   getObserveCount,
   getRoomMember,
-} from "../../services/chat/chat.ctrl";
+} from '../../services/chat/chat.ctrl';
 
 const io = new Server(httpServer, {
   cors: {
-    origin: ["https://smpark.dev", "http://localhost:4000", "http://localhost:3000"],
-    methods: ["GET", "POST"],
+    origin: [
+      'https://smpark.dev',
+      'http://localhost:4000',
+      'http://localhost:3000',
+    ],
+    methods: ['GET', 'POST'],
   },
 });
 
@@ -48,11 +52,9 @@ smpChatIo.use(async (socket, next) => {
   next();
 });
 
-smpChatIo.on("connection", async (socket) => {
+smpChatIo.on('connection', async (socket) => {
   console.log(`Connected to socket.io ${socket.userId}`);
-
   // console.log(io.engine.clientsCount);
-  
 
   socketSend(socket).start();
 
@@ -80,7 +82,7 @@ const socketSend = function sendSocketContact(socket) {
       let clientName = socket.userId;
       let alarmCount = null;
 
-      if (socket.userType === "manager") {
+      if (socket.userType === 'manager') {
         previewLog = await getPreview(socket);
         clientName = await getClientName(socket);
         alarmCount = await getObserveCount(socket);
@@ -95,48 +97,48 @@ const socketSend = function sendSocketContact(socket) {
 
       if (clientName) socket.join(clientName);
 
-      socket.emit("start", { dialog, previewLog, alarmCount });
+      socket.emit('start', { dialog, previewLog, alarmCount });
     },
     message: (log) => {
       if (log.length !== 0) {
-        smpChatIo.to(log[0].roomName).emit("message", log[0]);
+        smpChatIo.to(log[0].roomName).emit('message', log[0]);
       }
     },
     systemMessage: (message, userId) => {
-      socket.to(userId).emit("systemMessage", message);
+      socket.to(userId).emit('systemMessage', message);
     },
     switch: (state) => {
-      socket.emit("switch", state);
+      socket.emit('switch', state);
     },
     preview: (log, roomName = null) => {
-      const PREVIEW_TYPE = "Create";
+      const PREVIEW_TYPE = 'Create';
 
       if (log[0].message === null && log[0].image) {
-        log[0].message = "사진을 보냈습니다.";
+        log[0].message = '사진을 보냈습니다.';
       }
 
-      if (socket.userType === "manager") {
-        socket.emit("preview", log[0], PREVIEW_TYPE);
+      if (socket.userType === 'manager') {
+        socket.emit('preview', log[0], PREVIEW_TYPE);
       }
 
-      if (socket.userType === "client") {
+      if (socket.userType === 'client') {
         !roomName
-          ? socket.to("manager").emit("preview", log[0], PREVIEW_TYPE)
-          : socket.to(roomName).emit("preview", log[0], PREVIEW_TYPE);
+          ? socket.to('manager').emit('preview', log[0], PREVIEW_TYPE)
+          : socket.to(roomName).emit('preview', log[0], PREVIEW_TYPE);
       }
     },
     join: (dialog, roomName) => {
-      const PREVIEW_TYPE = "Delete";
+      const PREVIEW_TYPE = 'Delete';
 
-      socket.to("manager").emit("preview", roomName, PREVIEW_TYPE);
+      socket.to('manager').emit('preview', roomName, PREVIEW_TYPE);
 
-      socket.emit("join", dialog);
+      socket.emit('join', dialog);
     },
     prevDialog: (log) => {
-      socket.emit("prevDialog", log);
+      socket.emit('prevDialog', log);
     },
     observe: (roomName) => {
-      socket.to(roomName).emit("observe", true, roomName);
+      socket.to(roomName).emit('observe', true, roomName);
     },
   };
 };
@@ -144,28 +146,28 @@ const socketSend = function sendSocketContact(socket) {
 const socketReceive = function receiveSocketContact(socket) {
   return {
     disconnect: () => {
-      socket.on("disconnect", async (reason) => {
+      socket.on('disconnect', async (reason) => {
         checkDuplicateUser(socket, socket.users);
 
-        if (reason !== "transport close") {
-          const members = await getRoomMember(socket, "close");
+        if (reason !== 'transport close') {
+          const members = await getRoomMember(socket, 'close');
 
           await leaveRoomMember(socket, members.result);
         }
       });
     },
     disconnecting: () => {
-      socket.on("disconnecting", async (reason) => {
+      socket.on('disconnecting', async (reason) => {
         checkDuplicateUser(socket, socket.users);
 
-        if (reason === "transport close") {
-          await setServerState(socket, "refresh");
+        if (reason === 'transport close') {
+          await setServerState(socket, 'refresh');
 
           setTimeout(async () => {
             const state = await getServerState(socket);
 
-            if (state === "refresh") {
-              await setServerState(socket, "off");
+            if (state === 'refresh') {
+              await setServerState(socket, 'off');
 
               const members = await getRoomMember(socket);
 
@@ -185,25 +187,25 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     switch: () => {
-      socket.on("switch", async (state) => {
-        if (state === "refresh") state = "on";
+      socket.on('switch', async (state) => {
+        if (state === 'refresh') state = 'on';
 
         const setState = await setServerState(socket, state);
 
-        if (!setState.result) console.log("err");
+        if (!setState.result) console.log('err');
 
         socketSend(socket).switch(state);
       });
     },
     message: () => {
-      socket.on("message", async (msg = null, img = null) => {
-        if (socket.userType === "client") await joinRoomMember(socket);
+      socket.on('message', async (msg = null, img = null) => {
+        if (socket.userType === 'client') await joinRoomMember(socket);
 
         const msgLog = await saveMessage(socket, msg, img);
 
         if (!msgLog) return;
 
-        if (socket.userType === "client") {
+        if (socket.userType === 'client') {
           const members = await getRoomMember(socket);
 
           if (!members.result) {
@@ -217,7 +219,7 @@ const socketReceive = function receiveSocketContact(socket) {
           }
         }
 
-        if (socket.userType === "manager") {
+        if (socket.userType === 'manager') {
           socketSend(socket).preview(msgLog);
         }
 
@@ -225,10 +227,10 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     join: () => {
-      socket.on("join", async (roomName) => {
+      socket.on('join', async (roomName) => {
         const result = await joinRoomMember(socket, roomName);
 
-        if (result.state === "chatting") return;
+        if (result.state === 'chatting') return;
 
         const dialog = await loadDialog(socket);
 
@@ -242,7 +244,7 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     leave: () => {
-      socket.on("leave", async (roomName) => {
+      socket.on('leave', async (roomName) => {
         const result = await leaveRoomMember(socket, roomName);
 
         if (!result) return;
@@ -253,7 +255,7 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     prevDialog: () => {
-      socket.on("prevDialog", async (seq) => {
+      socket.on('prevDialog', async (seq) => {
         const prevDialog = await loadDialog(socket, seq);
 
         if (prevDialog.length === 0 || !prevDialog) return;
@@ -262,7 +264,7 @@ const socketReceive = function receiveSocketContact(socket) {
       });
     },
     observe: () => {
-      socket.on("observe", async (roomName) => {
+      socket.on('observe', async (roomName) => {
         const result = await observeMessageCheck(socket, roomName);
 
         if (!result) return;
@@ -276,7 +278,7 @@ const socketReceive = function receiveSocketContact(socket) {
 const smpChatError = ({ message }) => {
   const err = new Error(message);
 
-  err.data = { message, state: "off" };
+  err.data = { message, state: 'off' };
 
   return err;
 };

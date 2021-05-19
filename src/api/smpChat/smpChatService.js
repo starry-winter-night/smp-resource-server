@@ -174,7 +174,7 @@
             alarmPreview(result, logs);
 
             if (alarmCount) {
-              drawAlarm.refleshPreview(alarmCount.previewCount, logs.roomName);
+              drawAlarm.refreshPreview(alarmCount.previewCount, logs.roomName);
 
               drawAlarm.icon(alarmCount.iconCount);
             }
@@ -184,8 +184,6 @@
             effectSelect(dialog[0].roomName);
           }
         }
-
-        loadScroll(this.socket);
       });
     }
 
@@ -285,13 +283,13 @@
 
         dialog.forEach((logs) => contentsHTML.drawDialog(logs, userId));
 
-        scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
-
         effectSelect(dialog[0].roomName);
 
         moveMobileChatView();
 
         drawMobilePreviewAlarm();
+
+        scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
         function drawMobilePreviewAlarm() {
           const previewAlarm = document.querySelectorAll(
@@ -2059,6 +2057,7 @@
   const loadScroll = (function loadDialogScroll() {
     return (socket) => {
       const chatView = document.querySelector('.smpChat__dialog__chatView');
+
       let timer = 0;
 
       chatView.addEventListener(
@@ -2351,16 +2350,18 @@
       `.smpChat__dialog__chatView[data-id="${roomName}"]`
     );
 
-    const icon = document.querySelector('.smpChatIcon');
+    const iconSection = document.querySelector('.smpChat__iconSection');
 
     if (!chatView) return;
 
     const observer = new IntersectionObserver((entries, options) => {
-      const active = icon.classList.contains('smp_active');
+      const active = iconSection.classList.contains('smp_active');
 
       if (!active) return;
 
-      socketSend(socket).observe(roomName);
+      if (entries[0].isIntersecting === true) {
+        socketSend(socket).observe(roomName);
+      }
     });
 
     observer.observe(chatView);
@@ -2415,7 +2416,7 @@
   const drawAlarm = (function drawChatAlarm() {
     const drawAlarmApi = {
       messagePreview,
-      refleshPreview,
+      refreshPreview,
       icon,
       clickIconHide,
       clickReDraw,
@@ -2433,18 +2434,15 @@
       );
 
       if (typeof count === 'number' && count > 0) {
-        console.log(chatView);
-        console.log(section);
         if (chatView && section.classList.contains('smp_active')) return;
 
-        console.log(previewAlarm);
         previewAlarm.classList.add('view');
 
         previewAlarm.textContent = count;
       }
     }
 
-    function refleshPreview(count, roomName) {
+    function refreshPreview(count, roomName) {
       const previewAlarm = document.querySelector(
         `.smpChat__connect_previewAlarm[data-id="${roomName}"]`
       );
