@@ -3,7 +3,7 @@
   const smpChat = {
     setting: {
       chatService: class ChatService {
-        constructor(clientId, apiKey, socketIo, position) {
+        constructor(clientId, apiKey, position, socketIo) {
           this.clientId = clientId;
           this.apiKey = apiKey;
           this.socketIo = socketIo;
@@ -27,7 +27,7 @@
 
             drawChatHTML(this.args, data.type);
 
-            resize(this.position);
+            resize(this.position, data.type);
 
             const socket = this.socketIo
               ? await socketConn(this.args, this.socketIo)
@@ -67,7 +67,7 @@
 
             receive.start(userId, data.type);
 
-            receive.preview(userId);
+            receive.preview();
 
             receive.join(userId);
 
@@ -189,7 +189,7 @@
       });
     }
 
-    preview(userId) {
+    preview() {
       this.socket.on('preview', (info, previewType) => {
         if (previewType === 'Delete') return deletePreview(info);
 
@@ -201,17 +201,18 @@
 
         drawAlarm.messagePreview(info.alarm, info.roomName);
 
-        countMessageIconAlarm(info, userId);
+        const allAlarmCount = getAllMessageAlarmCount();
+
+        drawAllCountAlarm(allAlarmCount);
       });
 
-      function countMessageIconAlarm() {
-        const iconAlarm = document.querySelector('.smpChat__message__alarm');
+      function getAllMessageAlarmCount() {
         const alarms = document.querySelectorAll(
           '.smpChat__connect_previewAlarm'
         );
         const arrAlarm = [...alarms];
 
-        let alramCount = 0;
+        let alarmCount = 0;
 
         arrAlarm.forEach((dom) => {
           if (!dom.textContent) return;
@@ -220,30 +221,51 @@
 
           if (typeof alarm !== 'number') return;
 
-          alramCount = alramCount + alarm;
+          alarmCount = alarmCount + alarm;
         });
 
-        if (alramCount === 0) {
+        return alarmCount;
+      }
+
+      function drawAllCountAlarm(alarmCount) {
+        const iconAlarm = document.querySelector('.smpChat__message__alarm');
+        const dialogAlarm = document.querySelector(
+          '.smpChat__dialog__msgAlarm'
+        );
+
+        if (alarmCount === 0) {
           iconAlarm.classList.remove('view');
+          dialogAlarm.classList.remove('view');
 
           return;
         }
 
-        if (alramCount > 0) {
+        if (alarmCount > 0) {
           if (!iconAlarm.classList.contains('view')) {
             iconAlarm.classList.add('view');
 
-            iconAlarm.textContent = alramCount;
+            iconAlarm.textContent = alarmCount;
+
+            dialogAlarm.classList.add('view');
+
+            dialogAlarm.textContent = alarmCount;
 
             return;
           }
 
-          const currCount = parseInt(iconAlarm.textContent);
+          const iconCurrCount = parseInt(iconAlarm.textContent);
 
-          if (typeof currCount !== 'number') return;
+          if (typeof iconCurrCount !== 'number') return;
 
           iconAlarm.textContent =
-            alramCount < currCount ? currCount + 1 : alramCount;
+            alarmCount < iconCurrCount ? iconCurrCount + 1 : alarmCount;
+
+          const dialogCurrCount = parseInt(dialogAlarm.textContent);
+
+          if (typeof dialogCurrCount !== 'number') return;
+
+          dialogAlarm.textContent =
+            alarmCount < dialogCurrCount ? dialogCurrCount + 1 : alarmCount;
 
           return;
         }
@@ -266,6 +288,25 @@
         scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
         effectSelect(dialog[0].roomName);
+
+        moveMobileChatView();
+
+        function moveMobileChatView() {
+          const innerWidth = window.innerWidth;
+
+          if (innerWidth < 451) {
+            const connect = document.querySelector(
+              '.smpChat__section__connect'
+            );
+            const managerDialog = document.querySelector(
+              '.smpChat__section__managerDialog'
+            );
+
+            connect.style.display = 'none';
+
+            managerDialog.classList.add('view');
+          }
+        }
       });
     }
 
@@ -453,17 +494,17 @@
     });
   };
 
-  const resize = function mobileSize(position) {
+  const resize = function mobileSize(position, type) {
     const smpChatIcon = document.querySelector('.smpChatIcon');
     const smpChatClose = document.querySelector('.smpChat__section__close');
     const smpChat = document.querySelector('.smpChat');
 
-    if (smpChat) {
-      smpChat.style.top = position.top;
-      smpChat.style.bottom = position.bottom;
-      smpChat.style.left = position.left;
-      smpChat.style.right = position.right;
-    }
+    if (!smpChat || !type || !position) return;
+
+    smpChat.style.top = position.top;
+    smpChat.style.bottom = position.bottom;
+    smpChat.style.left = position.left;
+    smpChat.style.right = position.right;
 
     smpChatIcon.addEventListener('click', () => {
       changeSmpChatMobileSize();
@@ -486,16 +527,29 @@
         smpChat.style.right = position.right;
       });
 
-      if (innerWidth < 451) {
+      const web = ['win16', 'win32', 'win64', 'mac'];
+      let platform = 'mobile';
+
+      web.forEach((item) => {
+        const exist = item.indexOf(navigator.platform.toLowerCase());
+
+        if (exist) {
+          platform = 'web';
+        }
+      });
+
+      if (platform === 'web') {
         smpChat.style.top = '0px';
         smpChat.style.bottom = '0px';
         smpChat.style.left = '0px';
         smpChat.style.right = '0px';
+      }
 
-        const smpChatSection = document.querySelector('#smpChat_clientSection');
+      if (innerWidth < 451) {
         const smpChatDialog = document.querySelector(
           '.smpChat__section__dialog'
         );
+
         const smpChatChatView = document.querySelector(
           '.smpChat__dialog__chatView'
         );
@@ -503,28 +557,64 @@
           '.smpChat__section__contents'
         );
 
+        let smpChatSection = null;
+
+        if (type === 'client') {
+          smpChatSection = document.querySelector('#smpChat_clientSection');
+          smpChatDialog.style.maxHeight = `${innerHeight - 45}px`;
+        }
+
+        if (type === 'manager') {
+          smpChatSection = document.querySelector('#smpChat_managerSection');
+          const smpChatList = document.querySelector('.smpChat__connect__list');
+          const smpChatConnect = document.querySelector(
+            '.smpChat__section__connect'
+          );
+          const smpChatContents = document.querySelector(
+            '.smpChat__section__contents'
+          );
+
+          smpChatDialog.style.maxHeight = `${innerHeight - 40}px`;
+          smpChatContents.style.width = `${innerWidth - 5}px`;
+
+          smpChatConnect.style.height = `${innerHeight - 40}px`;
+          smpChatList.style.maxHeight = `${innerHeight - 75}px`;
+
+          const forward = document.querySelector(
+            '.smpChat__connect__goForwardImg'
+          );
+          const connect = document.querySelector('.smpChat__section__connect');
+          const managerDialog = document.querySelector(
+            '.smpChat__section__managerDialog'
+          );
+
+          forward.addEventListener('click', () => {
+            connect.style.display = 'none';
+
+            managerDialog.classList.add('view');
+
+            scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
+          });
+
+          const back = document.querySelector('.smpChat__dialog__gobackImg');
+
+          back.addEventListener('click', () => {
+            connect.style.display = 'block';
+
+            managerDialog.classList.remove('view');
+          });
+        }
+
         smpChatSection.style.width = `${innerWidth}px`;
         smpChatDialog.style.width = `${innerWidth - 10}px`;
 
         smpChatSection.style.maxHeight = `${innerHeight}px`;
-        smpChatDialog.style.maxHeight = `${innerHeight - 45}px`;
+
         smpChatContents.style.height = `${innerHeight - 35}px`;
         smpChatChatView.style.maxHeight = `${innerHeight - 140}px`;
         smpChatChatView.style.height = `${innerHeight - 140}px`;
         smpChatChatView.style.minHeight = `${innerHeight - 320}px`;
-        
       } else {
-        const web = ['win16', 'win32', 'win64', 'mac'];
-        let platform = 'mobile';
-
-        web.forEach((item) => {
-          const exist = item.indexOf(navigator.platform.toLowerCase());
-
-          if (exist) {
-            platform = 'web';
-          }
-        });
-
         // width가 넓은 mobile 위치 처리
         if (platform === 'mobile') {
           smpChat.style.top = '0px';
@@ -540,10 +630,11 @@
     changeDialogAreaHeight();
 
     function drawManagerHTML(domId) {
-      const smpChatLayout = document.querySelect(`.${domId}`);
+      const smpChatLayout = document.querySelector(`.${domId}`);
 
       /*****************************  layout *****************************/
       /* common */
+      const iconSection = document.createElement('section');
       const section = document.createElement('section');
       const inconsolataFont = document.createElement('link');
       const josefinSansFont = document.createElement('link');
@@ -560,7 +651,7 @@
 
       /* connect */
       const connNav = document.createElement('div');
-      const connNavInfo = document.createElement('h3');
+      const dialogGoForward = document.createElement('img');
       const connSwitch = document.createElement('div');
       const connSwitchLabel = document.createElement('label');
       const connSwitchBall = document.createElement('span');
@@ -572,6 +663,9 @@
 
       /* dialog */
       const dialogNav = document.createElement('div');
+      const dialogGobackImg = document.createElement('img');
+      const dialogMsgAlarm = document.createElement('p');
+      const dialogNavInfo = document.createElement('h3');
       const dialogChatView = document.createElement('div');
       const dialogChatFooter = document.createElement('div');
       const dialogChatAddImg = document.createElement('img');
@@ -585,12 +679,19 @@
       const logoText = document.createTextNode('smpchat');
 
       /* connect */
-      const infoText = document.createTextNode('Connect to Chat Server:');
+      // const infoText = document.createTextNode('Connect to Chat Server:');
       const connSwitchOff = document.createTextNode('OFF');
       const connSwitchOn = document.createTextNode('ON');
 
+      /* dialog */
+      const infoText = document.createTextNode(
+        'Beta 1.0 version - smpark all rights reserved'
+      );
+
       /*****************************  appned  *****************************/
       /* common */
+      iconSection.appendChild(smpChatIconImg);
+      iconSection.appendChild(alarm);
       section.appendChild(inconsolataFont);
       section.appendChild(josefinSansFont);
       section.appendChild(nanumGothicFont);
@@ -602,7 +703,6 @@
       navbar.appendChild(closeImg);
 
       /* connect */
-      connNavInfo.appendChild(infoText);
       connSwitchOffP.appendChild(connSwitchOff);
       connSwitchOnP.appendChild(connSwitchOn);
       connSwitchSpan.appendChild(connSwitchOffP);
@@ -611,13 +711,17 @@
       connSwitchLabel.appendChild(connSwitchSpan);
       connSwitch.appendChild(connSwitchInput);
       connSwitch.appendChild(connSwitchLabel);
-      connNav.appendChild(connNavInfo);
       connNav.appendChild(connSwitch);
+      connNav.appendChild(dialogGoForward);
       connect.appendChild(connNav);
       connect.appendChild(connList);
       contents.appendChild(connect);
 
       /* dialog */
+      dialogNavInfo.appendChild(infoText);
+      dialogNav.appendChild(dialogGobackImg);
+      dialogNav.appendChild(dialogMsgAlarm);
+      dialogNav.appendChild(dialogNavInfo);
       dialog.appendChild(dialogNav);
       dialog.appendChild(dialogChatView);
       dialog.appendChild(dialogChatFooter);
@@ -629,12 +733,12 @@
       contents.appendChild(dialog);
 
       /* smpchat */
-      smpChatLayout.appendChild(smpChatIconImg);
-      smpChatLayout.appendChild(alarm);
+      smpChatLayout.appendChild(iconSection);
       smpChatLayout.appendChild(section);
 
       /*****************************  className & id  *****************************/
       /* common */
+      iconSection.className = 'smpChat__iconSection';
       section.id = 'smpChat_managerSection';
       section.className = 'smpChat__section';
       contents.className = 'smpChat__section__contents';
@@ -650,7 +754,7 @@
 
       /* connect */
       connNav.className = 'smpChat__connect__navbar';
-      connNavInfo.className = 'smpChat__connect__navInfo';
+      dialogGoForward.className = 'smpChat__connect__goForwardImg';
       connList.className = 'smpChat__connect__list';
       connSwitch.className = 'smpChat__connect__switch';
       connSwitchBall.className = 'smpChat__connect__switchBall';
@@ -663,6 +767,9 @@
 
       /* dialog */
       dialogNav.className = 'smpChat__dialog__navbar';
+      dialogNavInfo.className = 'smpChat__dialog__navInfo';
+      dialogGobackImg.className = 'smpChat__dialog__gobackImg';
+      dialogMsgAlarm.className = 'smpChat__dialog__msgAlarm';
       dialogChatView.className = 'smpChat__dialog__chatView';
       dialogChatFooter.className = 'smpChat__dialog__footer';
       dialogChatAddImg.className = 'smpChat__dialog__addImg';
@@ -710,7 +817,16 @@
       connSwitchInput.type = 'checkbox';
       connSwitchInput.name = 'smp_chat_switch';
 
+      dialogGoForward.setAttribute(
+        'src',
+        'http://localhost:5000/smpChat/image?name=right.png'
+      );
+
       /* dialog */
+      dialogGobackImg.setAttribute(
+        'src',
+        'http://localhost:5000/smpChat/image?name=left.png'
+      );
       dialogChatAddImg.setAttribute(
         'src',
         'http://localhost:5000/smpChat/image?name=plus.png'
@@ -729,6 +845,7 @@
 
       /*****************************  layout *****************************/
       /* common */
+      const iconSection = document.createElement('section');
       const section = document.createElement('section');
       const inconsolataFont = document.createElement('link');
       const josefinSansFont = document.createElement('link');
@@ -773,6 +890,8 @@
 
       /*****************************  appned  *****************************/
       /* common */
+      iconSection.appendChild(smpChatIconImg);
+      iconSection.appendChild(alarm);
       section.appendChild(inconsolataFont);
       section.appendChild(josefinSansFont);
       section.appendChild(nanumGothicFont);
@@ -808,12 +927,12 @@
 
       /* smpchat */
 
-      smpChatLayout.appendChild(smpChatIconImg);
-      smpChatLayout.appendChild(alarm);
+      smpChatLayout.appendChild(iconSection);
       smpChatLayout.appendChild(section);
 
       /*****************************  className & id  *****************************/
       /* common */
+      iconSection.className = 'smpChat__iconSection';
       section.id = 'smpChat_clientSection';
       section.className = 'smpChat__section';
       contents.className = 'smpChat__section__contents';
@@ -898,23 +1017,23 @@
       dialogChatAddInput.name = 'smp_chat_addImg';
     }
     function toggleChatView() {
-      const icon = document.querySelector('.smpChatIcon');
+      const iconSection = document.querySelector('.smpChat__iconSection');
       const section = document.querySelector('.smpChat__section');
       const close = document.querySelector('.smpChat__section__close');
       const chatView = document.querySelector('.smpChat__dialog__chatView');
 
-      icon.addEventListener('click', iconOnClickHandler);
+      iconSection.addEventListener('click', iconOnClickHandler);
       close.addEventListener('click', closeOnClickHandler);
 
       function iconOnClickHandler() {
-        icon.classList.toggle('smp_active');
+        iconSection.classList.toggle('smp_active');
         section.classList.toggle('smp_active');
 
         scrollBottom(chatView);
       }
 
       function closeOnClickHandler() {
-        icon.classList.toggle('smp_active');
+        iconSection.classList.toggle('smp_active');
         section.classList.toggle('smp_active');
       }
     }
@@ -1047,9 +1166,12 @@
 
           scrollBottom(arg.chatView);
 
+          const MESSAGE_DEAULT_HEIGHT = '40px';
+          const FOOTER_DEAULT_HEIGHT = '60px';
+
           arg.message.value = '';
-          arg.message.style.height = getStyle(arg.footer, 'height');
-          arg.footer.style.height = getStyle(arg.footer, 'height');
+          arg.message.style.height = MESSAGE_DEAULT_HEIGHT;
+          arg.footer.style.height = FOOTER_DEAULT_HEIGHT;
           arg.chatView.style.height = getStyle(arg.chatView, 'max-height');
 
           e.preventDefault();
@@ -1208,7 +1330,7 @@
       profileImage.className = 'smpChat__dialog__profileImage';
       content.className = 'smpChat__dialog__content';
       time.className = 'smpChat__dialog__time ';
-      id.className = 'smpChat__dialog__id';
+      id.className = 'smpChat__dialog__managerId';
       span.className = 'smpChat__dialog__span';
 
       /*  set  */
@@ -1256,7 +1378,7 @@
       profileImage.className = 'smpChat__dialog__profileImage';
       link.className = 'smpChat__dialog__content';
       time.className = 'smpChat__dialog__time';
-      id.className = 'smpChat__dialog__id';
+      id.className = 'smpChat__dialog__managerId';
       span.className = 'smpChat__dialog__span';
 
       /*  set  */
@@ -1320,7 +1442,7 @@
       profileImage.className = 'smpChat__dialog__profileImage';
       content.className = 'smpChat__dialog__content';
       time.className = 'smpChat__dialog__time';
-      id.className = 'smpChat__dialog__id';
+      id.className = 'smpChat__dialog__managerId';
       span.className = 'smpChat__dialog__span';
 
       /*  set  */
@@ -2342,7 +2464,7 @@
 
       close.addEventListener('click', closeReDrawOnClickHandler, false);
 
-      function closeReDrawOnClickHandler(e) {
+      function closeReDrawOnClickHandler() {
         const previewAlarm = document.querySelectorAll(
           '.smpChat__connect_previewAlarm'
         );

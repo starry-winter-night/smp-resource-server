@@ -20,7 +20,7 @@ smpChat.get('/image', (ctx) => {
 
 smpChat.get('/chatService.js', async (ctx) => {
   const clientID = ctx.query.CLIENTID;
-  
+
   if (!clientID || clientID === null) {
     ctx.status = 401;
     ctx.body = 'CLIENTID가 누락되었습니다.';

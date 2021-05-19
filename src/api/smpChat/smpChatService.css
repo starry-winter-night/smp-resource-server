@@ -38,13 +38,11 @@
 }
 
 /* Manager HTML */
-/* common */
 
+/* common */
 .smpChat {
   z-index: 99999;
   position: fixed;
-  /* top: 85%;
-  left: 5%; */
 }
 
 #smpChat_managerSection {
@@ -57,20 +55,13 @@
   color: #333 !important;
 }
 
-#smpChat_managerSection img {
-  vertical-align: middle;
-}
-
-#smpChat_clientSection img {
-  vertical-align: middle;
+.smpChat__iconSection {
+  position: relative;
 }
 
 .smpChatIcon {
   max-width: 60px;
   max-height: 60px;
-  /* position: fixed;
-  bottom: 100px;
-  right: 5%; */
   cursor: pointer;
   z-index: 99999;
   -moz-user-select: none;
@@ -79,9 +70,11 @@
   user-select: none;
   transition: all 200ms ease;
 }
+
 .smpChatIcon:hover {
   transform: scale(1.1);
 }
+
 .smpChat__message__alarm {
   display: none;
   -moz-user-select: none;
@@ -91,10 +84,9 @@
 }
 .smpChat__message__alarm.view {
   display: block;
-  position: fixed;
-  bottom: 100px;
-  right: 5%;
-  z-index: 99999;
+  position: absolute;
+  top: -7px;
+  right: -8px;
   margin: 0;
   min-height: 15px;
   min-width: 20px;
@@ -113,9 +105,6 @@
   background-color: var(--smpchat_color-navBar);
   border-radius: 15px;
   display: none;
-  /* position: fixed;
-  bottom: 50px;
-  right: 0; */
   z-index: 999999999;
 }
 
@@ -131,7 +120,7 @@
   display: block;
 }
 
-.smpChatIcon.smp_active {
+.smpChat__iconSection.smp_active {
   display: none;
 }
 
@@ -258,6 +247,7 @@
 }
 
 .smpChat__connect__switchSpan p {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 12px;
   font-weight: 700;
 }
@@ -309,6 +299,10 @@
   transform: translateX(30px);
 }
 
+.smpChat__connect__goForwardImg {
+  display: none;
+}
+
 .smpChat__connect__list {
   overflow-y: scroll;
   width: 100%;
@@ -341,6 +335,7 @@
   box-shadow: none;
   outline: none;
   will-change: opacity;
+  position: relative;
 }
 
 .smpChat__connect__container.select {
@@ -356,6 +351,8 @@
   margin: 0;
   font-weight: 700;
   overflow: hidden;
+  color: #333;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
   -moz-user-select: none;
@@ -381,8 +378,10 @@
 .smpChat__connect_previewExit {
   max-width: 15px;
   max-height: 15px;
-  display: inline-block;
-  vertical-align: super;
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  vertical-align: super !important;
   cursor: pointer;
   -moz-user-select: none;
   -webkit-user-select: none;
@@ -441,7 +440,7 @@
 /* dialog */
 .smpChat__section__dialog {
   width: 340px;
-  max-height: 640px;
+  max-height: 645px;
   height: 100%;
   background-color: var(--smpchat_color-light-white);
   overflow: hidden;
@@ -467,6 +466,7 @@
   padding: 10px;
   background-color: var(--smpchat_color-navSubBar);
   border-radius: 0 15px 0 0;
+  position: relative;
 }
 
 .smpChat__dialog__navInfo {
@@ -479,6 +479,14 @@
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+.smpChat__dialog__gobackImg {
+  display: none;
+}
+
+.smpChat__dialog__msgAlarm {
+  display: none;
 }
 
 .smpChat__dialog__switchLabel {
@@ -630,7 +638,8 @@
 }
 
 .smpChat__dialog__profile {
-  display: block;
+  display: flex;
+  align-items: center;
 }
 
 .smpChat__dialog__profileImage {
@@ -649,16 +658,40 @@
   display: inline-block;
   font-family: 'Inconsolata', monospace;
   font-size: 15px;
-  /* letter-spacing: 0.3rem; */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  margin: 0;
   padding-left: 5px;
-  text-transform: uppercase;
   cursor: default;
   -moz-user-select: none;
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  margin: 0 0 10px;
   color: #333;
+  font-weight: 400;
+  width: 80%;
+}
+
+.smpChat__dialog__managerId {
+  display: inline-block;
+  font-family: 'Inconsolata', monospace;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: super;
+  overflow: hidden;
+  margin: 0;
+  padding-left: 5px;
+  cursor: default;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  color: #333;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
 }
 
 .smpChat__dialog__span {
@@ -864,17 +897,12 @@
   width: 0;
 }
 
-@media screen and (max-width: 450px) {
-  /* .smpChat {
-    z-index: 99999;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  } */
-
+@media screen and (max-width: 451px) {
   #smpChat_clientSection {
+    border-radius: 0;
+  }
+
+  #smpChat_managerSection {
     border-radius: 0;
   }
 
@@ -887,8 +915,16 @@
     width: 100%;
   }
 
+  .smpChat__section__connect {
+    width: 100%;
+    border-radius: 15px;
+    display: block;
+    margin: 0 3px 0 2px;
+  }
+
   .smpChat__section__navbar {
     max-height: 35px;
+    padding: 15px 5px 15px 15px;
   }
 
   .smpChat__section__logo {
@@ -909,12 +945,98 @@
     top: 3px;
   }
 
+  .smpChat__section__managerDialog {
+    display: none;
+  }
+
+  .smpChat__section__managerDialog.view {
+    display: block;
+    border-radius: 15px;
+    margin: 0 auto;
+  }
+
+  .smpChat__section__contents {
+    margin: 0 auto;
+  }
+
+  .smpChat__connect__navbar {
+    max-height: 35px;
+    border-radius: 15px 15px 0 0;
+  }
+
+  .smpChat__connect__navInfo {
+    font-size: 12px;
+  }
+
+  .smpChat__connect__switchLabel {
+    height: 20px;
+    width: 50px;
+  }
+
+  .smpChat__connect__switchBall {
+    width: 23px;
+    height: 23px;
+  }
+
+  .smpChat__connect__switchSpan p {
+    font-size: 11px;
+  }
+
+  .smpChat__connect__switchInput:checked
+    + .smpChat__connect__switchLabel
+    .smpChat__connect__switchBall {
+    transform: translateX(25px);
+  }
+
+  .smpChat__connect__switchInput:checked
+    + .smpChat__connect__switchLabel
+    .smpChat__connect__switchOn {
+    transform: translateX(-24px);
+  }
+
+  .smpChat__connect__switchOff {
+    margin: 0 4px 0 0;
+  }
+
+  .smpChat__connect__goForwardImg {
+    width: 25px;
+    height: 25px;
+    margin-left: 15px;
+    display: block;
+  }
+
   .smpChat__dialog__navbar {
     max-height: 35px;
   }
 
   .smpChat__dialog__navInfo {
     font-size: 12px;
+    margin-right: 5px;
+  }
+
+  .smpChat__dialog__gobackImg {
+    width: 25px;
+    height: 25px;
+    margin-right: 15px;
+    display: block;
+  }
+
+  .smpChat__dialog__msgAlarm.view {
+    display: block;
+    min-height: 15px;
+    min-width: 20px;
+    position: absolute;
+    right: 3%;
+    bottom: 13px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    overflow: hidden;
+    text-align: center;
+    border-radius: 50%;
+    padding: 1px 5px;
+    color: var(--smpchat_color-light-white);
+    background-color: var(--smpchat_color-alarm);
   }
 
   .smpChat__dialog__switchLabel {
