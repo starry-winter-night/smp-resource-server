@@ -1026,8 +1026,8 @@
     min-height: 15px;
     min-width: 20px;
     position: absolute;
-    right: 3%;
-    bottom: 13px;
+    left: 30px;
+    top: 7px;
     margin: 0;
     font-size: 12px;
     font-weight: 700;

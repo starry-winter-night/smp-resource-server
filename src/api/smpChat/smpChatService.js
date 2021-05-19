@@ -55,7 +55,7 @@
 
             drawAlarm.clickIconHide();
 
-            drawAlarm.clickCloseReDraw();
+            drawAlarm.clickReDraw();
 
             const receive = new SocketReceive(socket);
 
@@ -290,6 +290,47 @@
         effectSelect(dialog[0].roomName);
 
         moveMobileChatView();
+
+        drawMobilePreviewAlarm();
+
+        function drawMobilePreviewAlarm() {
+          const previewAlarm = document.querySelectorAll(
+            '.smpChat__connect_previewAlarm'
+          );
+          const dialogAlarm = document.querySelector(
+            '.smpChat__dialog__msgAlarm'
+          );
+
+          dialogAlarm.classList.add('view');
+
+          if (!previewAlarm) {
+            dialogAlarm.textContent = 0;
+
+            dialogAlarm.classList.remove('view');
+
+            return;
+          }
+
+          const arrPreviewAlarm = [...previewAlarm];
+
+          let count = 0;
+
+          arrPreviewAlarm.map((dom) => {
+            if (dom.textContent) {
+              const alarmCount = parseInt(dom.textContent);
+
+              if (typeof alarmCount === 'number' && alarmCount > 0) {
+                count = count + alarmCount;
+              }
+            }
+          });
+
+          if (count > 0) {
+            dialogAlarm.textContent = count;
+          } else {
+            dialogAlarm.classList.remove('view');
+          }
+        }
 
         function moveMobileChatView() {
           const innerWidth = window.innerWidth;
@@ -1258,6 +1299,8 @@
       }
 
       while (chatView.firstChild) chatView.removeChild(chatView.firstChild);
+
+      delete chatView.dataset.id;
 
       return;
     }
@@ -2375,7 +2418,7 @@
       refleshPreview,
       icon,
       clickIconHide,
-      clickCloseReDraw,
+      clickReDraw,
     };
 
     return drawAlarmApi;
@@ -2390,8 +2433,11 @@
       );
 
       if (typeof count === 'number' && count > 0) {
+        console.log(chatView);
+        console.log(section);
         if (chatView && section.classList.contains('smp_active')) return;
 
+        console.log(previewAlarm);
         previewAlarm.classList.add('view');
 
         previewAlarm.textContent = count;
@@ -2458,43 +2504,59 @@
       }
     }
 
-    function clickCloseReDraw() {
+    function clickReDraw() {
       const close = document.querySelector('.smpChat__section__close');
+      const forward = document.querySelector('.smpChat__connect__goForwardImg');
+
       const iconAlarm = document.querySelector('.smpChat__message__alarm');
+      const dialogAlarm = document.querySelector('.smpChat__dialog__msgAlarm');
 
-      close.addEventListener('click', closeReDrawOnClickHandler, false);
+      if (close) {
+        close.addEventListener('click', reDrawOnClickHandler(iconAlarm));
+      }
 
-      function closeReDrawOnClickHandler() {
-        const previewAlarm = document.querySelectorAll(
-          '.smpChat__connect_previewAlarm'
-        );
-        let count = 0;
+      if (forward) {
+        forward.addEventListener('click', reDrawOnClickHandler(dialogAlarm));
+      }
 
-        if (!previewAlarm) {
-          iconAlarm.textContent = 0;
+      function reDrawOnClickHandler(element) {
+        return () => {
+          const previewAlarm = document.querySelectorAll(
+            '.smpChat__connect_previewAlarm'
+          );
 
-          iconAlarm.classList.remove('view');
+          element.classList.add('view');
+
+          if (!previewAlarm) {
+            element.textContent = 0;
+
+            element.classList.remove('view');
+
+            return;
+          }
+
+          const arrPreviewAlarm = [...previewAlarm];
+
+          let count = 0;
+
+          arrPreviewAlarm.map((dom) => {
+            if (dom.textContent) {
+              const alarmCount = parseInt(dom.textContent);
+
+              if (typeof alarmCount === 'number' && alarmCount > 0) {
+                count = count + alarmCount;
+              }
+            }
+          });
+
+          if (count > 0) {
+            element.textContent = count;
+          } else {
+            element.classList.remove('view');
+          }
 
           return;
-        }
-
-        const arrPreviewAlarm = [...previewAlarm];
-
-        arrPreviewAlarm.map((dom) => {
-          if (dom.textContent) {
-            const alarmCount = parseInt(dom.textContent);
-
-            if (typeof alarmCount === 'number' && alarmCount > 0) {
-              count = count + alarmCount;
-            }
-          }
-        });
-
-        count > 0
-          ? (iconAlarm.textContent = count)
-          : iconAlarm.classList.remove('view');
-
-        return;
+        };
       }
     }
   })();
