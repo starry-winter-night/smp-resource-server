@@ -297,7 +297,7 @@
         const innerWidth = window.innerWidth;
         const pixel = standardPixel(type);
 
-        if (innerWidth < pixel) {
+        if (innerWidth < pixel.width) {
           moveMobileChatView();
 
           drawMobilePreviewAlarm();
@@ -553,11 +553,17 @@
     let pixel = null;
 
     if (type === 'manager') {
-      pixel = 600;
+      pixel = {
+        width: 600,
+        height: 700,
+      };
     }
 
     if (type === 'client') {
-      pixel = 451;
+      pixel = {
+        width: 451,
+        height: 700,
+      };
     }
 
     return pixel;
@@ -586,7 +592,7 @@
       chatView,
     };
 
-    const initialCSS = saveInitialCSS(elements);
+    const initialCSS = saveInitialCSS(elements, type);
 
     const pixel = standardPixel(type);
 
@@ -650,7 +656,7 @@
 
       if (active) {
         const iconSectionInfo = dom.section.getBoundingClientRect();
-        
+
         const standardRightWidth =
           iconSectionInfo.width + (window.innerWidth - iconSectionInfo.right);
 
@@ -663,42 +669,38 @@
           window.innerWidth <= standardRightWidth
         ) {
           dom.section.style.transform = `translate(0px, 0px)`;
-        } else {
-          dom.section.style.transform = `translate(${info.modal.x}, ${info.modal.y})`;
         }
-        // 위에서 세이브 이니셜 css에 smp의 top bottom left rigth를 구해서 저장해놓자.
-        // if() {
-        //   position(positionInfo);
-        // }
       }
     }
 
-    function saveInitialCSS(dom) {
+    function saveInitialCSS(dom, type) {
+      const sectionMaxWidth = getStyle(dom.section, 'max-width');
+      const sectionMaxHeight = getStyle(dom.section, 'max-height');
+      const contentsHeight = getStyle(dom.contents, 'height');
       const dialogMaxHeight = getStyle(dom.dialog, 'max-height');
       const dialogWidth = getStyle(dom.dialog, 'width');
-
-      const contentsWidth = getStyle(dom.contents, 'width');
-      const contentsHeight = getStyle(dom.contents, 'height');
-
-      const connectHeight = getStyle(dom.connect, 'height');
-
-      const listMaxHeight = getStyle(dom.list, 'max-height');
-
-      const sectionWidth = getStyle(dom.section, 'width');
-      const sectionMaxHeight = getStyle(dom.section, 'max-height');
-
       const chatViewHeight = getStyle(dom.chatView, 'height');
       const chatViewMaxHeight = getStyle(dom.chatView, 'max-height');
-      const chatViewMinHeight = getStyle(dom.chatView, 'max-height');
+      const chatViewMinHeight = getStyle(dom.chatView, 'min-height');
+
+      let contentsMaxWidth = null;
+      let connectHeight = null;
+      let listMaxHeight = null;
+
+      if (type === 'manager') {
+        contentsMaxWidth = getStyle(dom.contents, 'max-width');
+        connectHeight = getStyle(dom.connect, 'height');
+        listMaxHeight = getStyle(dom.list, 'max-height');
+      }
 
       const initialCSS = {
         dialogMaxHeight,
         dialogWidth,
-        contentsWidth,
+        contentsMaxWidth,
         contentsHeight,
         connectHeight,
         listMaxHeight,
-        sectionWidth,
+        sectionMaxWidth,
         sectionMaxHeight,
         chatViewHeight,
         chatViewMaxHeight,
@@ -710,7 +712,7 @@
 
     function revertSmpChatCSS(dom, type, initial) {
       if (type === 'manager') {
-        dom.contents.style.width = initial.contentsWidth;
+        dom.contents.style.maxWidth = initial.contentsMaxWidth;
         dom.connect.style.height = initial.connectHeight;
         dom.list.style.maxHeight = initial.listMaxHeight;
       }
@@ -720,7 +722,7 @@
 
       dom.contents.style.height = initial.contentsHeight;
 
-      dom.section.style.width = initial.sectionWidth;
+      dom.section.style.maxWidth = initial.sectionMaxWidth;
       dom.section.style.maxHeight = initial.sectionMaxHeight;
 
       dom.chatView.style.maxHeight = initial.chatViewMaxHeight;
@@ -735,20 +737,24 @@
 
         positioning(dom, 'smp_active', positionInfo);
 
-        if (innerWidth < pixel) {
+        // 모바일 크기
+        if (innerWidth <= pixel.width) {
           if (type === 'manager') {
             dom.dialog.style.maxHeight = `${innerHeight - 40}px`;
-            dom.contents.style.width = `${innerWidth - 5}px`;
+            dom.contents.style.maxWidth = `${innerWidth - 5}px`;
 
             dom.connect.style.height = `${innerHeight - 40}px`;
             dom.list.style.maxHeight = `${innerHeight - 75}px`;
+
+            dom.connect.style.display = 'none';
+            dom.dialog.classList.add('view');
           }
 
           if (type === 'client') {
             dom.dialog.style.maxHeight = `${innerHeight - 45}px`;
           }
 
-          dom.section.style.width = `${innerWidth}px`;
+          dom.section.style.maxWidth = `${innerWidth}px`;
           dom.dialog.style.width = `${innerWidth - 10}px`;
 
           dom.contents.style.height = `${innerHeight - 35}px`;
@@ -756,8 +762,75 @@
           dom.chatView.style.maxHeight = `${innerHeight - 140}px`;
           dom.chatView.style.height = `${innerHeight - 140}px`;
           dom.chatView.style.minHeight = `${innerHeight - 320}px`;
-        } else {
+        }
+
+        // 가로 600px 이상 chat 기준 높이 이상 (가장 큰 화면 조건)
+        if (600 < innerWidth && innerHeight > pixel.height) {
           revertSmpChatCSS(dom, type, initialCSS);
+
+          dom.connect.style.display = 'block';
+        }
+
+        // 가로 600px 이상 chat 기준 높이 이하 (넓지만 낮은 화면)
+        if (600 < innerWidth && innerHeight < pixel.height) {
+          if (type === 'manager') {
+            dom.section.style.maxWidth = `600px`;
+            dom.dialog.style.width = '340px';
+            dom.contents.style.maxWidth = `${pixel.width}px`;
+            dom.dialog.style.maxHeight = `${innerHeight - 40}px`;
+            dom.connect.style.height = `${innerHeight - 55}px`;
+            dom.list.style.maxHeight = `${innerHeight - 75}px`;
+
+            dom.connect.style.display = 'block';
+          }
+
+          if (type === 'client') {
+            dom.dialog.style.maxHeight = `${innerHeight - 45}px`;
+          }
+
+          dom.contents.style.height = `${innerHeight - 55}px`;
+          dom.section.style.maxHeight = `${innerHeight}px`;
+          dom.chatView.style.maxHeight = `${innerHeight - 160}px`;
+          dom.chatView.style.height = `${innerHeight - 160}px`;
+          dom.chatView.style.minHeight = `${innerHeight - 320}px`;
+        }
+
+        // 가로 600px 이하 chat 기준 가로 이상 chat 기준 높이 이하  (600px 이하의 가로, 낮은 화면)
+        if (
+          600 > innerWidth &&
+          innerWidth > pixel.width &&
+          innerHeight < pixel.height
+        ) {
+          if (type === 'manager') {
+            dom.dialog.style.maxHeight = `${innerHeight - 40}px`;
+            dom.connect.style.height = `${innerHeight - 40}px`;
+            dom.list.style.maxHeight = `${innerHeight - 75}px`;
+
+            dom.connect.style.display = 'none';
+            dom.dialog.classList.add('view');
+          }
+
+          if (type === 'client') {
+            dom.dialog.style.maxHeight = `${innerHeight - 45}px`;
+          }
+
+          dom.contents.style.height = `${innerHeight - 35}px`;
+          dom.section.style.maxHeight = `${innerHeight}px`;
+          dom.chatView.style.maxHeight = `${innerHeight - 140}px`;
+          dom.chatView.style.height = `${innerHeight - 140}px`;
+          dom.chatView.style.minHeight = `${innerHeight - 320}px`;
+        }
+
+        // 가로 600px 이하 chat 기준 가로 이상 chat 기준 높이 이상  (600px 이하의 가로, 높은 화면)
+        if (
+          600 > innerWidth &&
+          innerWidth > pixel.width &&
+          innerHeight >= pixel.height
+        ) {
+          revertSmpChatCSS(dom, type, initialCSS);
+
+          dom.section.style.maxHeight = `${pixel.height - 20}px`;
+          dom.contents.style.height = `${pixel.height - 60}px`;
         }
       };
     }
@@ -2410,7 +2483,7 @@
     function stopAlarmOnClickHandler(e) {
       const target = e.target;
       const container = target.closest('.smpChat__connect__container');
-      const id = container.dataset.id;
+      const id = container?.dataset.id;
       const exitBtn = document.querySelector(
         `.smpChat__connect_previewExit[data-id="${id}"]`
       );

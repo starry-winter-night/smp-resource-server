@@ -115,11 +115,11 @@
 }
 
 #smpChat_managerSection {
-  width: 600px;
+  max-width: 600px;
 }
 
 #smpChat_clientSection {
-  width: 350px;
+  max-width: 350px;
 }
 
 .smpChat__section.smp_active {
@@ -133,7 +133,8 @@
 .smpChat__section__contents {
   display: flex;
   justify-content: space-between;
-  height: 650px;
+  height: 645px;
+  width: 100%;
 }
 
 .smpChat__section__navbar {
@@ -940,8 +941,8 @@
   .smpChat__section__theme {
     width: 20px;
     height: 20px;
-    left: 133px;
-    bottom: 14px;
+    left: 128px;
+    bottom: 13px;
   }
 
   .smpChat__section__close {
