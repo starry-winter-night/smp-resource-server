@@ -27,6 +27,8 @@
 
             drawChatHTML(this.args, data.type);
 
+            position(this.position);
+
             resize(this.position, data.type);
 
             const socket = this.socketIo
@@ -69,7 +71,7 @@
 
             receive.preview();
 
-            receive.join(userId);
+            receive.join(userId, data.type);
 
             receive.prevDialog(userId);
 
@@ -277,7 +279,7 @@
       }
     }
 
-    join(userId) {
+    join(userId, type) {
       this.socket.on('join', (dialog) => {
         resetHTML.dialog(dialog[0].roomName);
 
@@ -285,9 +287,14 @@
 
         effectSelect(dialog[0].roomName);
 
-        moveMobileChatView();
+        const innerWidth = window.innerWidth;
+        const pixel = standardPixel(type);
 
-        drawMobilePreviewAlarm();
+        if (innerWidth < pixel) {
+          moveMobileChatView();
+
+          drawMobilePreviewAlarm();
+        }
 
         scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
@@ -331,20 +338,14 @@
         }
 
         function moveMobileChatView() {
-          const innerWidth = window.innerWidth;
+          const connect = document.querySelector('.smpChat__section__connect');
+          const managerDialog = document.querySelector(
+            '.smpChat__section__managerDialog'
+          );
 
-          if (innerWidth < 451) {
-            const connect = document.querySelector(
-              '.smpChat__section__connect'
-            );
-            const managerDialog = document.querySelector(
-              '.smpChat__section__managerDialog'
-            );
+          connect.style.display = 'none';
 
-            connect.style.display = 'none';
-
-            managerDialog.classList.add('view');
-          }
+          managerDialog.classList.add('view');
         }
       });
     }
@@ -533,39 +534,97 @@
     });
   };
 
-  const resize = function mobileSize(position, type) {
-    const smpChatIcon = document.querySelector('.smpChatIcon');
-    const smpChatClose = document.querySelector('.smpChat__section__close');
+  const position = function applyPosition(position) {
     const smpChat = document.querySelector('.smpChat');
-
-    if (!smpChat || !type || !position) return;
 
     smpChat.style.top = position.top;
     smpChat.style.bottom = position.bottom;
     smpChat.style.left = position.left;
     smpChat.style.right = position.right;
+  };
 
-    smpChatIcon.addEventListener('click', () => {
-      changeSmpChatMobileSize();
+  const standardPixel = function getUserTypeByStandardMaxWidthPixel(type) {
+    let pixel = null;
+
+    if (type === 'manager') {
+      pixel = 600;
+    }
+
+    if (type === 'client') {
+      pixel = 451;
+    }
+
+    return pixel;
+  };
+
+  const resize = function mobileSize(positionInfo, type) {
+    const smpChat = document.querySelector('.smpChat');
+    const icon = document.querySelector('.smpChatIcon');
+    const section = document.querySelector(`#smpChat_${type}Section`);
+    const iconSection = document.querySelector('.smpChat__iconSection');
+    const smpChatClose = document.querySelector('.smpChat__section__close');
+    const contents = document.querySelector('.smpChat__section__contents');
+    const dialog = document.querySelector('.smpChat__section__dialog');
+    const connect = document.querySelector('.smpChat__section__connect');
+    const list = document.querySelector('.smpChat__connect__list');
+    const chatView = document.querySelector('.smpChat__dialog__chatView');
+
+    const elements = {
+      smpChat,
+      section,
+      iconSection,
+      contents,
+      dialog,
+      connect,
+      list,
+      chatView,
+    };
+
+    const initialCSS = saveInitialCSS(elements);
+
+    const pixel = standardPixel(type);
+
+    icon.addEventListener(
+      'click',
+      changeMobileSize(elements, type, pixel, initialCSS)
+    );
+
+    window.addEventListener(
+      'resize',
+      changeMobileSize(elements, type, pixel, initialCSS)
+    );
+
+    smpChatClose.addEventListener('click', () => {
+      position(positionInfo);
     });
 
-    window.addEventListener('resize', function () {
-      changeSmpChatMobileSize();
-    });
+    if (type === 'manager') changeManagerView();
 
-    function changeSmpChatMobileSize() {
-      const innerWidth = window.innerWidth;
-      const innerHeight = window.innerHeight;
+    function changeManagerView() {
+      const forward = document.querySelector('.smpChat__connect__goForwardImg');
+      const connect = document.querySelector('.smpChat__section__connect');
+      const managerDialog = document.querySelector(
+        '.smpChat__section__managerDialog'
+      );
 
-      smpChat.focus();
+      forward.addEventListener('click', () => {
+        connect.style.display = 'none';
 
-      smpChatClose.addEventListener('click', () => {
-        smpChat.style.top = position.top;
-        smpChat.style.bottom = position.bottom;
-        smpChat.style.left = position.left;
-        smpChat.style.right = position.right;
+        managerDialog.classList.add('view');
+
+        scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
       });
 
+      const back = document.querySelector('.smpChat__dialog__gobackImg');
+
+      back.addEventListener('click', () => {
+        connect.style.display = 'block';
+
+        managerDialog.classList.remove('view');
+      });
+    }
+
+    function checkPlatform() {
       const web = ['win16', 'win32', 'win64', 'mac'];
       let platform = 'mobile';
 
@@ -577,89 +636,104 @@
         }
       });
 
-      if (platform === 'web') {
-        smpChat.style.top = '0px';
-        smpChat.style.bottom = '0px';
-        smpChat.style.left = '0px';
-        smpChat.style.right = '0px';
-      }
+      return platform;
+    }
 
-      if (innerWidth < 451) {
-        const smpChatDialog = document.querySelector(
-          '.smpChat__section__dialog'
-        );
+    function positioning(smpChat, dom, addDom) {
+      const active = dom.classList.contains(addDom);
 
-        const smpChatChatView = document.querySelector(
-          '.smpChat__dialog__chatView'
-        );
-        const smpChatContents = document.querySelector(
-          '.smpChat__section__contents'
-        );
+      if (active) {
+        const smpChatInfo = smpChat.getBoundingClientRect();
 
-        let smpChatSection = null;
+        const standardRightWidth =
+          smpChatInfo.width + (window.innerWidth - smpChatInfo.right);
 
-        if (type === 'client') {
-          smpChatSection = document.querySelector('#smpChat_clientSection');
-          smpChatDialog.style.maxHeight = `${innerHeight - 45}px`;
-        }
+        const standardLeftWidth = smpChatInfo.width + smpChatInfo.left;
 
-        if (type === 'manager') {
-          smpChatSection = document.querySelector('#smpChat_managerSection');
-          const smpChatList = document.querySelector('.smpChat__connect__list');
-          const smpChatConnect = document.querySelector(
-            '.smpChat__section__connect'
-          );
-          const smpChatContents = document.querySelector(
-            '.smpChat__section__contents'
-          );
-
-          smpChatDialog.style.maxHeight = `${innerHeight - 40}px`;
-          smpChatContents.style.width = `${innerWidth - 5}px`;
-
-          smpChatConnect.style.height = `${innerHeight - 40}px`;
-          smpChatList.style.maxHeight = `${innerHeight - 75}px`;
-
-          const forward = document.querySelector(
-            '.smpChat__connect__goForwardImg'
-          );
-          const connect = document.querySelector('.smpChat__section__connect');
-          const managerDialog = document.querySelector(
-            '.smpChat__section__managerDialog'
-          );
-
-          forward.addEventListener('click', () => {
-            connect.style.display = 'none';
-
-            managerDialog.classList.add('view');
-
-            scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
-          });
-
-          const back = document.querySelector('.smpChat__dialog__gobackImg');
-
-          back.addEventListener('click', () => {
-            connect.style.display = 'block';
-
-            managerDialog.classList.remove('view');
-          });
-        }
-
-        smpChatSection.style.width = `${innerWidth}px`;
-        smpChatDialog.style.width = `${innerWidth - 10}px`;
-
-        smpChatSection.style.maxHeight = `${innerHeight}px`;
-
-        smpChatContents.style.height = `${innerHeight - 35}px`;
-        smpChatChatView.style.maxHeight = `${innerHeight - 140}px`;
-        smpChatChatView.style.height = `${innerHeight - 140}px`;
-        smpChatChatView.style.minHeight = `${innerHeight - 320}px`;
-      } else {
-        // width가 넓은 mobile 위치 처리
-        if (platform === 'mobile') {
+        /* smpChat width + 좌 or 우의 여백의 길이가 
+           innerWidth보다 같거나 크면 smpChat을 왼쪽 상단에 고정 */
+        if (
+          window.innerWidth <= standardLeftWidth ||
+          window.innerWidth <= standardRightWidth
+        ) {
           smpChat.style.top = '0px';
+          smpChat.style.bottom = '0px';
           smpChat.style.left = '0px';
+          smpChat.style.right = '0px';
         }
       }
+    }
+
+    function saveInitialCSS(dom) {
+      const dialogMaxHeight = getStyle(dom.dialog, 'maxHeight');
+      const dialogWidth = getStyle(dom.dialog, 'width');
+
+      const contentsWidth = getStyle(dom.contents, 'width');
+      const contentsHeight = getStyle(dom.contents, 'height');
+
+      const connectHeight = getStyle(dom.connect, 'height');
+
+      const listHeight = getStyle(dom.list, 'height');
+
+      const sectionWidth = getStyle(dom.section, 'width');
+      const sectionMaxHeight = getStyle(dom.section, 'maxHeight');
+
+      const chatViewHeight = getStyle(dom.chatView, 'height');
+      const chatViewMaxHeight = getStyle(dom.chatView, 'maxHeight');
+      const chatViewMinHeight = getStyle(dom.chatView, 'minHeight');
+
+      const initialCSS = {
+        dialogMaxHeight,
+        dialogWidth,
+        contentsWidth,
+        contentsHeight,
+        connectHeight,
+        listHeight,
+        sectionWidth,
+        sectionMaxHeight,
+        chatViewHeight,
+        chatViewMaxHeight,
+        chatViewMinHeight,
+      };
+
+      return initialCSS;
+    }
+
+    function changeMobileSize(dom, type, pixel, initialCSS) {
+      return () => {
+        const innerWidth = window.innerWidth;
+        const innerHeight = window.innerHeight;
+
+        positioning(dom.smpChat, dom.iconSection, 'smp_active');
+
+        if (innerWidth < pixel) {
+          if (type === 'manager') {
+            dom.dialog.style.maxHeight = `${innerHeight - 40}px`;
+            dom.contents.style.width = `${innerWidth - 5}px`;
+
+            dom.connect.style.height = `${innerHeight - 40}px`;
+            dom.list.style.maxHeight = `${innerHeight - 75}px`;
+          }
+
+          if (type === 'client') {
+            dom.dialog.style.maxHeight = `${innerHeight - 45}px`;
+          }
+
+          dom.section.style.width = `${innerWidth}px`;
+          dom.dialog.style.width = `${innerWidth - 10}px`;
+
+          dom.contents.style.height = `${innerHeight - 35}px`;
+          dom.section.style.maxHeight = `${innerHeight}px`;
+          dom.chatView.style.maxHeight = `${innerHeight - 140}px`;
+          dom.chatView.style.height = `${innerHeight - 140}px`;
+          dom.chatView.style.minHeight = `${innerHeight - 320}px`;
+        } else {
+          if (type === 'manager') {
+          }
+          if (type === 'client') {
+          }
+        }
+      };
     }
   };
 

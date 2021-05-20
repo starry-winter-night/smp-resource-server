@@ -885,7 +885,6 @@
   padding: 0;
   cursor: pointer;
   flex-basis: 10%;
-  /* margin: 0 5px 10px 5px; */
   -moz-user-select: none;
   -webkit-user-select: none;
   -ms-user-select: none;
@@ -897,7 +896,7 @@
   width: 0;
 }
 
-@media screen and (max-width: 451px) {
+@media screen and (max-width: 599px) {
   #smpChat_clientSection {
     border-radius: 0;
   }
