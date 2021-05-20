@@ -3,11 +3,14 @@
   const smpChat = {
     setting: {
       chatService: class ChatService {
-        constructor(clientId, apiKey, position, socketIo) {
+        constructor(clientId, apiKey, socketIo) {
           this.clientId = clientId;
           this.apiKey = apiKey;
           this.socketIo = socketIo;
-          this.position = position;
+          this.position = {
+            icon: { x: '0px', y: '0px' },
+            modal: { x: '0px', y: '0px' },
+          };
         }
 
         async init(userId, domId) {
@@ -85,6 +88,10 @@
           } catch (e) {
             SmpChatError.errHandle(e);
           }
+        }
+
+        setPosition(position) {
+          this.position = position;
         }
       },
       client: class Client {
@@ -534,13 +541,12 @@
     });
   };
 
-  const position = function applyPosition(position) {
-    const smpChat = document.querySelector('.smpChat');
+  const position = function applyPosition(info) {
+    const iconSection = document.querySelector('.smpChat__iconSection');
+    const modalSection = document.querySelector('.smpChat__section');
 
-    smpChat.style.top = position.top;
-    smpChat.style.bottom = position.bottom;
-    smpChat.style.left = position.left;
-    smpChat.style.right = position.right;
+    iconSection.style.transform = `translate(${info.icon.x}, ${info.icon.y})`;
+    modalSection.style.transform = `translate(${info.modal.x}, ${info.modal.y})`;
   };
 
   const standardPixel = function getUserTypeByStandardMaxWidthPixel(type) {
@@ -586,12 +592,12 @@
 
     icon.addEventListener(
       'click',
-      changeMobileSize(elements, type, pixel, initialCSS)
+      changeMobileSize(elements, type, pixel, positionInfo, initialCSS)
     );
 
     window.addEventListener(
       'resize',
-      changeMobileSize(elements, type, pixel, initialCSS)
+      changeMobileSize(elements, type, pixel, positionInfo, initialCSS)
     );
 
     smpChatClose.addEventListener('click', () => {
@@ -639,16 +645,16 @@
       return platform;
     }
 
-    function positioning(smpChat, dom, addDom) {
-      const active = dom.classList.contains(addDom);
+    function positioning(dom, addDom, info) {
+      const active = dom.iconSection.classList.contains(addDom);
 
       if (active) {
-        const smpChatInfo = smpChat.getBoundingClientRect();
-
+        const iconSectionInfo = dom.section.getBoundingClientRect();
+        
         const standardRightWidth =
-          smpChatInfo.width + (window.innerWidth - smpChatInfo.right);
+          iconSectionInfo.width + (window.innerWidth - iconSectionInfo.right);
 
-        const standardLeftWidth = smpChatInfo.width + smpChatInfo.left;
+        const standardLeftWidth = iconSectionInfo.width + iconSectionInfo.left;
 
         /* smpChat width + 좌 or 우의 여백의 길이가 
            innerWidth보다 같거나 크면 smpChat을 왼쪽 상단에 고정 */
@@ -656,16 +662,19 @@
           window.innerWidth <= standardLeftWidth ||
           window.innerWidth <= standardRightWidth
         ) {
-          smpChat.style.top = '0px';
-          smpChat.style.bottom = '0px';
-          smpChat.style.left = '0px';
-          smpChat.style.right = '0px';
+          dom.section.style.transform = `translate(0px, 0px)`;
+        } else {
+          dom.section.style.transform = `translate(${info.modal.x}, ${info.modal.y})`;
         }
+        // 위에서 세이브 이니셜 css에 smp의 top bottom left rigth를 구해서 저장해놓자.
+        // if() {
+        //   position(positionInfo);
+        // }
       }
     }
 
     function saveInitialCSS(dom) {
-      const dialogMaxHeight = getStyle(dom.dialog, 'maxHeight');
+      const dialogMaxHeight = getStyle(dom.dialog, 'max-height');
       const dialogWidth = getStyle(dom.dialog, 'width');
 
       const contentsWidth = getStyle(dom.contents, 'width');
@@ -673,14 +682,14 @@
 
       const connectHeight = getStyle(dom.connect, 'height');
 
-      const listHeight = getStyle(dom.list, 'height');
+      const listMaxHeight = getStyle(dom.list, 'max-height');
 
       const sectionWidth = getStyle(dom.section, 'width');
-      const sectionMaxHeight = getStyle(dom.section, 'maxHeight');
+      const sectionMaxHeight = getStyle(dom.section, 'max-height');
 
       const chatViewHeight = getStyle(dom.chatView, 'height');
-      const chatViewMaxHeight = getStyle(dom.chatView, 'maxHeight');
-      const chatViewMinHeight = getStyle(dom.chatView, 'minHeight');
+      const chatViewMaxHeight = getStyle(dom.chatView, 'max-height');
+      const chatViewMinHeight = getStyle(dom.chatView, 'max-height');
 
       const initialCSS = {
         dialogMaxHeight,
@@ -688,7 +697,7 @@
         contentsWidth,
         contentsHeight,
         connectHeight,
-        listHeight,
+        listMaxHeight,
         sectionWidth,
         sectionMaxHeight,
         chatViewHeight,
@@ -699,12 +708,32 @@
       return initialCSS;
     }
 
-    function changeMobileSize(dom, type, pixel, initialCSS) {
+    function revertSmpChatCSS(dom, type, initial) {
+      if (type === 'manager') {
+        dom.contents.style.width = initial.contentsWidth;
+        dom.connect.style.height = initial.connectHeight;
+        dom.list.style.maxHeight = initial.listMaxHeight;
+      }
+
+      dom.dialog.style.width = initial.dialogWidth;
+      dom.dialog.style.maxHeight = initial.dialogMaxHeight;
+
+      dom.contents.style.height = initial.contentsHeight;
+
+      dom.section.style.width = initial.sectionWidth;
+      dom.section.style.maxHeight = initial.sectionMaxHeight;
+
+      dom.chatView.style.maxHeight = initial.chatViewMaxHeight;
+      dom.chatView.style.height = initial.chatViewHeight;
+      dom.chatView.style.minHeight = initial.chatViewMinHeight;
+    }
+
+    function changeMobileSize(dom, type, pixel, positionInfo, initialCSS) {
       return () => {
         const innerWidth = window.innerWidth;
         const innerHeight = window.innerHeight;
 
-        positioning(dom.smpChat, dom.iconSection, 'smp_active');
+        positioning(dom, 'smp_active', positionInfo);
 
         if (innerWidth < pixel) {
           if (type === 'manager') {
@@ -728,10 +757,7 @@
           dom.chatView.style.height = `${innerHeight - 140}px`;
           dom.chatView.style.minHeight = `${innerHeight - 320}px`;
         } else {
-          if (type === 'manager') {
-          }
-          if (type === 'client') {
-          }
+          revertSmpChatCSS(dom, type, initialCSS);
         }
       };
     }
@@ -1129,13 +1155,15 @@
       dialogChatAddInput.accept = 'image/gif, image/jpeg, image/png';
       dialogChatAddInput.name = 'smp_chat_addImg';
     }
+
     function toggleChatView() {
+      const icon = document.querySelector('.smpChatIcon');
       const iconSection = document.querySelector('.smpChat__iconSection');
       const section = document.querySelector('.smpChat__section');
       const close = document.querySelector('.smpChat__section__close');
       const chatView = document.querySelector('.smpChat__dialog__chatView');
 
-      iconSection.addEventListener('click', iconOnClickHandler);
+      icon.addEventListener('click', iconOnClickHandler);
       close.addEventListener('click', closeOnClickHandler);
 
       function iconOnClickHandler() {
@@ -2555,7 +2583,7 @@
 
       icon.addEventListener('click', iconHideOnclickHandler, false);
 
-      function iconHideOnclickHandler(e) {
+      function iconHideOnclickHandler() {
         const container = document.querySelectorAll(
           '.smpChat__connect__container'
         );

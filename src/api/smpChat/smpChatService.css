@@ -40,10 +40,6 @@
 /* Manager HTML */
 
 /* common */
-.smpChat {
-  z-index: 99999;
-  position: fixed;
-}
 
 #smpChat_managerSection {
   line-height: 1.42857143 !important;
@@ -56,7 +52,12 @@
 }
 
 .smpChat__iconSection {
-  position: relative;
+  position: fixed;
+  z-index: 99999;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .smpChatIcon {
@@ -106,6 +107,11 @@
   border-radius: 15px;
   display: none;
   z-index: 999999999;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 #smpChat_managerSection {
