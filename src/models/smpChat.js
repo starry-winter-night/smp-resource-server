@@ -1,4 +1,4 @@
-import mongoose from "../config/db";
+import mongoose from '../config/db';
 const { Schema } = mongoose;
 
 const smpChatSchema = new Schema({
@@ -37,10 +37,7 @@ const smpChatSchema = new Schema({
 });
 
 smpChatSchema.statics.findByClientId = function (clientId) {
-  return this.findOne(
-    { clientId },
-    { chatApiKey: false, "client.chatLog._id": false }
-  );
+  return this.findOne({ clientId }, { chatApiKey: false });
 };
 
 smpChatSchema.statics.findByChatApiKey = function (chatApiKey) {
@@ -48,17 +45,17 @@ smpChatSchema.statics.findByChatApiKey = function (chatApiKey) {
 };
 
 smpChatSchema.statics.findByUserId = function (clientId, userId, type) {
-  if (type === "manager") {
+  if (type === 'manager') {
     return this.findOne(
-      { clientId, "manager.managerId": userId },
-      { "manager.managerId": true }
+      { clientId, 'manager.managerId': userId },
+      { 'manager.managerId': true }
     );
   }
 
-  if (type === "client") {
+  if (type === 'client') {
     return this.findOne(
-      { clientId, "client.userId": userId },
-      { "client.userId": true }
+      { clientId, 'client.userId': userId },
+      { 'client.userId': true }
     );
   }
 };
@@ -69,15 +66,15 @@ smpChatSchema.statics.updateByServerState = function (
   serverState,
   userType
 ) {
-  if (userType === "manager") {
+  if (userType === 'manager') {
     return this.updateOne(
-      { _id, "manager.managerId": userId },
-      { $set: { "manager.$.serverState": serverState } }
+      { _id, 'manager.managerId': userId },
+      { $set: { 'manager.$.serverState': serverState } }
     );
   }
   return this.updateOne(
-    { _id, "client.userId": userId },
-    { $set: { "client.$.serverState": serverState } }
+    { _id, 'client.userId': userId },
+    { $set: { 'client.$.serverState': serverState } }
   );
 };
 
@@ -87,15 +84,20 @@ smpChatSchema.statics.updateByStayRoomOwnerId = function (
   managerId
 ) {
   return this.updateOne(
-    { _id, "manager.managerId": managerId },
-    { "manager.$.stayRoomOwnerId": clientId }
+    { _id, 'manager.managerId': managerId },
+    { 'manager.$.stayRoomOwnerId': clientId }
   );
 };
 
-smpChatSchema.statics.updateByObserve = function (_id, clientName, observe) {
+smpChatSchema.statics.updateByObserve = function (_id, clientName, _logId) {
   return this.updateOne(
-    { _id, "client.userId": clientName, "client.chatLog.userId": clientName },
-    { "client.$.chatLog.$[].observe": observe }
+    {
+      _id,
+      'client.userId': clientName,
+      'client.chatLog._id': _logId,
+    },
+    { $set: { 'client.$.chatLog.$[elem].observe': true } },
+    { arrayFilters: [{ 'elem._id': _logId }] }
   );
 };
 
@@ -107,24 +109,24 @@ smpChatSchema.statics.updateByRoomMember = function (
 ) {
   const userId = !managerId ? clientId : managerId;
 
-  if (action === "Delete") {
+  if (action === 'Delete') {
     return this.updateOne(
-      { _id, "client.userId": clientId },
-      { $pull: { "client.$.roomMember": userId } }
+      { _id, 'client.userId': clientId },
+      { $pull: { 'client.$.roomMember': userId } }
     );
   }
-  if (action === "Add") {
+  if (action === 'Add') {
     return this.updateOne(
-      { _id, "client.userId": clientId },
-      { $addToSet: { "client.$.roomMember": userId } }
+      { _id, 'client.userId': clientId },
+      { $addToSet: { 'client.$.roomMember': userId } }
     );
   }
 };
 
 smpChatSchema.statics.updateByMessage = function (_id, clientName, chatLog) {
   return this.findOneAndUpdate(
-    { _id, "client.userId": clientName },
-    { $addToSet: { "client.$.chatLog": chatLog } },
+    { _id, 'client.userId': clientName },
+    { $addToSet: { 'client.$.chatLog': chatLog } },
     { returnOriginal: false }
   );
 };
@@ -135,7 +137,7 @@ smpChatSchema.methods.updateByIdAndState = function (
   registerTime,
   userType
 ) {
-  if (userType === "manager") {
+  if (userType === 'manager') {
     return this.updateOne({
       $addToSet: {
         manager: { managerId: userId, registerTime, serverState },
@@ -149,5 +151,5 @@ smpChatSchema.methods.updateByIdAndState = function (
   });
 };
 
-const SmpChat = mongoose.model("smpChat", smpChatSchema);
+const SmpChat = mongoose.model('smpChat', smpChatSchema);
 export default SmpChat;

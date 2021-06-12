@@ -53,11 +53,11 @@
 
 .smpChat__iconSection {
   position: fixed;
-  z-index: 99999;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  width: 0;
 }
 
 .smpChatIcon {
@@ -87,7 +87,7 @@
   display: block;
   position: absolute;
   top: -7px;
-  right: -8px;
+  right: -40px;
   margin: 0;
   min-height: 15px;
   min-width: 20px;
@@ -98,6 +98,10 @@
   padding: 1px 5px;
   color: var(--smpchat_color-light-white);
   background-color: var(--smpchat_color-alarm);
+}
+
+.smpChat_message_alarmAudio {
+  display: none;
 }
 
 .smpChat__section {
@@ -698,7 +702,7 @@
   color: #333;
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.2rem;
+  letter-spacing: 0.1rem;
 }
 
 .smpChat__dialog__span {

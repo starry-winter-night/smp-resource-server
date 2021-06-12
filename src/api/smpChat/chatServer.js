@@ -265,7 +265,17 @@ const socketReceive = function receiveSocketContact(socket) {
     },
     observe: () => {
       socket.on('observe', async (roomName) => {
-        const result = await observeMessageCheck(socket, roomName);
+        let userId = null;
+
+        const members = await getRoomMember(socket);
+
+        if (socket.userType === 'client') {
+          userId = members.result[0];
+        } else {
+          userId = roomName;
+        }
+
+        const result = await observeMessageCheck(socket, roomName, userId);
 
         if (!result) return;
 

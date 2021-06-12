@@ -18,6 +18,18 @@ smpChat.get('/image', (ctx) => {
   ctx.body = data;
 });
 
+smpChat.get('/sound', (ctx) => {
+  const name = ctx.query.name;
+
+  const filename = path.join(__dirname, `/../../public/sound/${name}`);
+
+  const audio = fs.createReadStream(filename);
+
+  ctx.set('Content-Type', 'audio/mp3');
+
+  ctx.body = audio;
+});
+
 smpChat.get('/chatService.js', async (ctx) => {
   const clientID = ctx.query.CLIENTID;
 

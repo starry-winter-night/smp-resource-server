@@ -1,12 +1,12 @@
-import moment from "moment-timezone";
+import moment from 'moment-timezone';
 import {
   findSameId,
   filterSmpChatData,
   saveImageFolderAndFile,
-} from "./chat.functions";
-import SmpChat from "../../models/smpChat";
-import Member from "../../models/member";
-import Oauth from "../../models/oauth";
+} from './chat.functions';
+import SmpChat from '../../models/smpChat';
+import Member from '../../models/member';
+import Oauth from '../../models/oauth';
 
 export const verifyClientId = async (clientId) => {
   const member = await Member.findByClientId(clientId);
@@ -15,7 +15,7 @@ export const verifyClientId = async (clientId) => {
     return {
       result: false,
       code: 500,
-      message: "등록된 CLIENTID가 아닙니다.",
+      message: '등록된 CLIENTID가 아닙니다.',
     };
   }
 
@@ -26,7 +26,7 @@ export const verifyClientId = async (clientId) => {
     const smpChat = new SmpChat({
       clientId,
       chatApiKey: member.client.chatApiKey,
-      registerTime: moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm"),
+      registerTime: moment().tz('Asia/Seoul').format('YYYY-MM-DD HH:mm'),
     });
 
     await smpChat.save();
@@ -37,15 +37,15 @@ export const verifyClientId = async (clientId) => {
 
 export const judgeUserType = async (clientId, userId) => {
   const oauth = await Oauth.findByClientId(clientId);
-  
-  if (oauth === null) return "oauth null";
+
+  if (oauth === null) return 'oauth null';
 
   const managerList = oauth.client.chatManagerList;
 
-  if (managerList.length === 0) return "managerList null";
+  if (managerList.length === 0) return 'managerList null';
 
   const id = findSameId(managerList, userId);
-  const userType = !id ? "client" : "manager";
+  const userType = !id ? 'client' : 'manager';
 
   return userType;
 };
@@ -54,8 +54,8 @@ export const registerManager = async ({ clientId, userId, userType }) => {
   const getIds = await SmpChat.findByUserId(clientId, userId, userType);
 
   if (getIds === null) {
-    const regTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
-    const serverState = "off";
+    const regTime = moment().tz('Asia/Seoul').format('YYYY-MM-DD HH:mm');
+    const serverState = 'off';
 
     const smpChat = await SmpChat.findByClientId(clientId);
     await smpChat.updateByIdAndState(userId, serverState, regTime, userType);
@@ -68,11 +68,11 @@ export const verifyManagerInfo = async (clientId, apiKey) => {
   const smpChat = await SmpChat.findByChatApiKey(apiKey);
 
   if (smpChat === null) {
-    return { message: "apiKey가 일치하지 않습니다.", result: false };
+    return { message: 'apiKey가 일치하지 않습니다.', result: false };
   }
 
   if (smpChat.clientId !== clientId) {
-    return { message: "clientId가 일치하지 않습니다.", result: false };
+    return { message: 'clientId가 일치하지 않습니다.', result: false };
   }
 
   return { result: true };
@@ -106,14 +106,14 @@ export const saveMessage = async (
   if (!smpChat) return { result: false };
 
   const roomName =
-    userType === "manager"
+    userType === 'manager'
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
 
   if (!roomName) return;
 
   const seq = filterSmpChatData(smpChat).recentSeq(roomName);
-  const registerTime = moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm");
+  const registerTime = moment().tz('Asia/Seoul').format('YYYY-MM-DD HH:mm');
   let filename = null;
   let buffer = null;
 
@@ -142,11 +142,11 @@ export const saveMessage = async (
     smpChatLogInfo
   );
 
-  if (image) smpChatLogInfo.image = buffer.toString("base64");
+  if (image) smpChatLogInfo.image = buffer.toString('base64');
 
   const alarmCount = filterSmpChatData(updateSmpChat).observeCount(
     userId,
-    "message",
+    'message',
     roomName
   );
 
@@ -165,24 +165,24 @@ export const joinRoomMember = async (
 
   if (!smpChat) return { result: false };
 
-  if (userType === "client" && roomName === null) {
+  if (userType === 'client' && roomName === null) {
     const userList = filterSmpChatData(smpChat).availChatClient(userId);
 
     if (userList.length === 1 && userList[0] === userId) return;
 
-    await SmpChat.updateByRoomMember(smpChat._id, userId, null, "Add");
+    await SmpChat.updateByRoomMember(smpChat._id, userId, null, 'Add');
   }
 
-  if (userType === "manager" && roomName) {
+  if (userType === 'manager' && roomName) {
     const state = filterSmpChatData(smpChat).checkRoomMember(userId, roomName);
 
-    if (state === "chatting") return { state };
+    if (state === 'chatting') return { state };
 
     const prevUser = filterSmpChatData(smpChat).recentStayRoomOwerId(userId);
 
     await SmpChat.updateByStayRoomOwnerId(smpChat._id, roomName, userId);
 
-    await SmpChat.updateByRoomMember(smpChat._id, roomName, userId, "Add");
+    await SmpChat.updateByRoomMember(smpChat._id, roomName, userId, 'Add');
 
     return { prevUser };
   }
@@ -196,20 +196,20 @@ export const leaveRoomMember = async (
 
   if (!smpChat) return false;
 
-  if (userType === "manager") {
-    if (typeof members === "object") {
+  if (userType === 'manager') {
+    if (typeof members === 'object') {
       members.forEach(async (roomName) => {
         await SmpChat.updateByRoomMember(
           smpChat._id,
           roomName,
           userId,
-          "Delete"
+          'Delete'
         );
       });
     }
 
-    if (typeof members === "string") {
-      await SmpChat.updateByRoomMember(smpChat._id, members, userId, "Delete");
+    if (typeof members === 'string') {
+      await SmpChat.updateByRoomMember(smpChat._id, members, userId, 'Delete');
     }
   }
 };
@@ -229,7 +229,7 @@ export const getPreview = async ({ clientId, userId }) => {
 
   if (chatLogs[0].image && chatLogs[0].message === null) {
     chatLogs[0].image = null;
-    chatLogs[0].message = "사진을 보냈습니다.";
+    chatLogs[0].message = '사진을 보냈습니다.';
   }
 
   return chatLogs;
@@ -244,7 +244,7 @@ export const loadDialog = async (
   if (!smpChat) return { result: false };
 
   const clientName =
-    userType === "manager"
+    userType === 'manager'
       ? filterSmpChatData(smpChat).recentStayRoomOwerId(userId)
       : userId;
 
@@ -273,20 +273,18 @@ export const getClientName = async ({ clientId, userId }) => {
   return clientName;
 };
 
-export const observeMessageCheck = async ({ clientId }, roomName) => {
+export const observeMessageCheck = async ({ clientId }, roomName, userId) => {
   const smpChat = await SmpChat.findByClientId(clientId);
 
   if (!smpChat) return { result: false };
 
-  roomName = [roomName];
+  const result = filterSmpChatData(smpChat).getChatLogUid(userId);
 
-  const chatLogs = filterSmpChatData(smpChat).recentChatLogs(roomName);
-
-  if (chatLogs[0].observe) {
-    return false;
+  if (result.check) {
+    result.uid.forEach(async (uid) => {
+      await SmpChat.updateByObserve(smpChat._id, roomName, uid);
+    });
   }
-
-  await SmpChat.updateByObserve(smpChat._id, roomName, true);
 
   return true;
 };
@@ -296,7 +294,7 @@ export const getObserveCount = async ({ clientId, userId }) => {
 
   if (!smpChat) return { result: false };
 
-  const alarmCount = filterSmpChatData(smpChat).observeCount(userId, "refresh");
+  const alarmCount = filterSmpChatData(smpChat).observeCount(userId, 'refresh');
 
   return alarmCount;
 };

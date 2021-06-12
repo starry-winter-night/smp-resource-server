@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 
 export const findSameId = (list, id) => {
   let data = false;
@@ -20,7 +20,7 @@ export const filterSmpChatData = (smpChatDoc) => {
     state: (userId, type) => {
       let state = null;
 
-      if (type === "manager") {
+      if (type === 'manager') {
         for (let i = 0; i < smpChatDoc.manager.length; i++) {
           if (smpChatDoc.manager[i].managerId === userId) {
             state = smpChatDoc.manager[i].serverState;
@@ -29,7 +29,7 @@ export const filterSmpChatData = (smpChatDoc) => {
           }
         }
       }
-      if (type === "client") {
+      if (type === 'client') {
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           if (smpChatDoc.client[i].userId === userId) {
             state = smpChatDoc.client[i].serverState;
@@ -140,7 +140,7 @@ export const filterSmpChatData = (smpChatDoc) => {
             const chatLog = client.chatLog[j];
 
             if (chatLog.image && !chatLog.message) {
-              chatLog.image = fs.readFileSync(chatLog.image).toString("base64");
+              chatLog.image = fs.readFileSync(chatLog.image).toString('base64');
             }
             dialog.push(chatLog);
           }
@@ -154,7 +154,7 @@ export const filterSmpChatData = (smpChatDoc) => {
     availChatClient: (userId) => {
       const member = smpChatDoc.client
         .filter((list) => {
-          if (list.serverState === "on" || list.serverState === "refresh") {
+          if (list.serverState === 'on' || list.serverState === 'refresh') {
             if (list.roomMember.length === 1) return list.roomMember;
 
             if (list.roomMember.length > 1) {
@@ -169,14 +169,14 @@ export const filterSmpChatData = (smpChatDoc) => {
       return member;
     },
     observeCount: (userId, type, roomName) => {
-      if (type === "refresh") {
+      if (type === 'refresh') {
         let previewCount = {};
         let iconCount = 0;
 
         for (let i = 0; i < smpChatDoc.client.length; i++) {
           const client = smpChatDoc.client[i];
 
-          if (client.serverState === "on" || client.serverState === "refresh") {
+          if (client.serverState === 'on' || client.serverState === 'refresh') {
             if (
               client.roomMember.length === 1 ||
               client.roomMember.indexOf(userId) !== -1
@@ -202,7 +202,7 @@ export const filterSmpChatData = (smpChatDoc) => {
         return { previewCount, iconCount };
       }
 
-      if (type === "message") {
+      if (type === 'message') {
         let count = 0;
 
         for (let i = 0; i < smpChatDoc.client.length; i++) {
@@ -223,6 +223,26 @@ export const filterSmpChatData = (smpChatDoc) => {
         return count;
       }
     },
+    getChatLogUid: (userId) => {
+      let check = null;
+      let uid = [];
+      let result = {};
+
+      for (let i = 0; i < smpChatDoc.client.length; i++) {
+        for (let j = smpChatDoc.client[i].chatLog.length - 1; j >= 0; j--) {
+          const chatLog = smpChatDoc.client[i].chatLog[j];
+          if (!chatLog.observe) {
+            if (chatLog.userId === userId) {
+              check = true;
+              uid.push(chatLog._id);
+            }
+          }
+        }
+      }
+
+      result = { check, uid };
+      return result;
+    },
     checkRoomMember: (userId, roomName) => {
       let state = null;
       for (let i = 0; i < smpChatDoc.client.length; i++) {
@@ -233,7 +253,7 @@ export const filterSmpChatData = (smpChatDoc) => {
             const index = client.roomMember.indexOf(userId);
 
             if (index === -1) {
-              state = "chatting";
+              state = 'chatting';
 
               break;
             }
@@ -249,20 +269,20 @@ export const filterSmpChatData = (smpChatDoc) => {
         const client = smpChatDoc.client[i];
         const roomMember = client.roomMember;
 
-        if (userType === "manager") {
-          if (action === "close") {
+        if (userType === 'manager') {
+          if (action === 'close') {
             findClientMember(roomMember, userId);
           }
 
           if (!action) {
             const state = client.serverState;
 
-            if (state === "on" || state === "refresh") {
+            if (state === 'on' || state === 'refresh') {
               findClientMember(roomMember, userId);
             }
           }
         }
-        if (userType === "client") {
+        if (userType === 'client') {
           if (client.userId === userId) {
             findClientMember(roomMember, userId);
           }
@@ -273,7 +293,7 @@ export const filterSmpChatData = (smpChatDoc) => {
 
       function findClientMember(roomMember, userId) {
         if (roomMember.length > 1) {
-          if (userType === "manager") {
+          if (userType === 'manager') {
             const index = roomMember.indexOf(userId);
             if (index !== -1) {
               roomMember.forEach((member) => {
@@ -284,7 +304,7 @@ export const filterSmpChatData = (smpChatDoc) => {
             }
           }
 
-          if (userType === "client") {
+          if (userType === 'client') {
             roomMember.forEach((member) => {
               if (member !== userId) {
                 clientMembers.push(member);
@@ -319,21 +339,21 @@ export const checkDuplicateUser = (() => {
   let accessUsers = [];
 
   return ({ userId, id }, arr = []) => {
-    let message = "";
+    let message = '';
     let result = true;
 
     if (arr.length !== 0) {
       accessUsers = accessUsers.filter((user) => user.userId !== userId);
-      message = "";
+      message = '';
     } else {
       accessUsers.map((user) => {
         if (user.userId === userId) {
-          message = "duplicate_connection";
+          message = 'duplicate_connection';
           result = false;
         }
       });
 
-      if (message === "") {
+      if (message === '') {
         accessUsers.push({ userId, socketId: id });
       }
     }

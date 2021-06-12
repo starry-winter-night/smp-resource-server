@@ -1,5 +1,4 @@
 (function (w) {
-  // craete namespace
   const smpChat = {
     setting: {
       chatService: class ChatService {
@@ -52,11 +51,13 @@
 
             changeTheme();
 
-            joinRoom(socket, data.type);
+            joinRoom(socket, data.type, userId);
 
             leaveRoom(socket, data.type);
 
             stopAlarm(data.type);
+
+            observeChatView(socket, data.type);
 
             drawAlarm.clickIconHide();
 
@@ -78,13 +79,13 @@
 
             receive.prevDialog(userId);
 
-            receive.message(userId);
+            receive.message(userId, data.type);
 
             receive.systemMessage(userId);
 
             receive.observe();
 
-            receive.alarm(userId);
+            // receive.alarm(userId);
           } catch (e) {
             SmpChatError.errHandle(e);
           }
@@ -162,14 +163,12 @@
 
             if (!logs.observe && logs.userId !== userId) {
               count = count + 1;
-
-              observeChatView(this.socket, dialog[0].roomName);
             }
           });
 
           contentsHTML.drawSystemMessage('on');
 
-          drawAlarm.icon(count);
+          drawAlarm.icon(count, type);
         }
 
         if (previewLog) {
@@ -185,7 +184,7 @@
             if (alarmCount) {
               drawAlarm.refreshPreview(alarmCount.previewCount, logs.roomName);
 
-              drawAlarm.icon(alarmCount.iconCount);
+              drawAlarm.icon(alarmCount.iconCount, type);
             }
           });
 
@@ -377,16 +376,16 @@
       }
     }
 
-    message(userId) {
+    message(userId, type) {
       this.socket.on('message', (message) => {
         contentsHTML.drawDialog(message, userId);
 
         scrollBottom(document.querySelector('.smpChat__dialog__chatView'));
 
         if (message.userId !== userId) {
-          drawAlarm.icon(message.alarm);
+          drawAlarm.icon(message.alarm, type);
 
-          observeChatView(this.socket, message.roomName);
+          observeChatView(this.socket, type);
         }
       });
     }
@@ -450,7 +449,7 @@
 
       prevDialog: (seq) => socket.emit('prevDialog', seq),
 
-      observe: (roomName) => socket.emit('observe', roomName),
+      observe: (roomName, userId) => socket.emit('observe', roomName, userId),
 
       alarm: (userId, msgUser) => socket.emit('alarm', userId, msgUser),
     };
@@ -472,7 +471,7 @@
       return false;
     }
 
-    if (userId === '') {
+    if (!userId) {
       SmpChatError.errHandle('id를 입력해주세요.');
       return false;
     }
@@ -651,7 +650,7 @@
       return platform;
     }
 
-    function positioning(dom, addDom, info) {
+    function positioning(dom, addDom) {
       const active = dom.iconSection.classList.contains(addDom);
 
       if (active) {
@@ -669,6 +668,10 @@
           window.innerWidth <= standardRightWidth
         ) {
           dom.section.style.transform = `translate(0px, 0px)`;
+        }
+
+        if (window.innerHeight < iconSectionInfo.bottom) {
+          dom.section.style.transform = `translateY(0px)`;
         }
       }
     }
@@ -768,7 +771,9 @@
         if (600 < innerWidth && innerHeight > pixel.height) {
           revertSmpChatCSS(dom, type, initialCSS);
 
-          dom.connect.style.display = 'block';
+          if (type === 'manager') {
+            dom.connect.style.display = 'block';
+          }
         }
 
         // 가로 600px 이상 chat 기준 높이 이하 (넓지만 낮은 화면)
@@ -859,6 +864,7 @@
       const connect = document.createElement('div');
       const dialog = document.createElement('div');
       const alarm = document.createElement('p');
+
       const smpChatIconImg = document.createElement('img');
 
       /* connect */
@@ -1011,7 +1017,7 @@
 
       smpChatIconImg.setAttribute(
         'src',
-        'http://localhost:5000/smpChat/image?name=chat.png'
+        'http://localhost:5000/smpChat/image?name=smpchat_logo.png'
       );
       smpChatIconImg.setAttribute('alt', '채팅아이콘');
       closeImg.setAttribute(
@@ -1149,6 +1155,7 @@
       section.className = 'smpChat__section';
       contents.className = 'smpChat__section__contents';
       alarm.className = 'smpChat__message__alarm';
+
       navbar.className = 'smpChat__section__navbar';
       dialog.className =
         'smpChat__section__dialog smpChat__section__clientDialog';
@@ -1197,7 +1204,7 @@
 
       smpChatIconImg.setAttribute(
         'src',
-        'http://localhost:5000/smpChat/image?name=chat.png'
+        'http://localhost:5000/smpChat/image?name=smpchat_logo.png'
       );
       smpChatIconImg.setAttribute('alt', '채팅아이콘');
       theme.setAttribute(
@@ -2090,8 +2097,7 @@
 
       checkbox.addEventListener(
         'click',
-        connectServerBtnClickHandler(checkbox, socket),
-        false
+        connectServerBtnClickHandler(checkbox, socket)
       );
     };
 
@@ -2140,15 +2146,15 @@
   };
 
   const joinRoom = (function clickPreviewJoinRoom() {
-    return (socket, type) => {
+    return (socket, type, userId) => {
       if (type !== 'manager') return;
 
       const list = document.querySelector('.smpChat__connect__list');
 
-      list.addEventListener('click', joinRoomOnClickHandler(socket));
+      list.addEventListener('click', joinRoomOnClickHandler(socket, userId));
     };
 
-    function joinRoomOnClickHandler(socket) {
+    function joinRoomOnClickHandler(socket, userId) {
       return (e) => {
         const container = e.target.closest('.smpChat__connect__container');
 
@@ -2520,10 +2526,8 @@
     }
   };
 
-  const observeChatView = function observeMessageRead(socket, roomName) {
-    const chatView = document.querySelector(
-      `.smpChat__dialog__chatView[data-id="${roomName}"]`
-    );
+  const observeChatView = function observeMessageRead(socket, type) {
+    const chatView = document.querySelector(`.smpChat__dialog__chatView`);
 
     const iconSection = document.querySelector('.smpChat__iconSection');
 
@@ -2532,11 +2536,50 @@
     const observer = new IntersectionObserver((entries, options) => {
       const active = iconSection.classList.contains('smp_active');
 
-      if (!active) return;
+      if (!active) {
+        const alarm = document.querySelector('.smpChat__message__alarm');
 
-      if (entries[0].isIntersecting === true) {
-        socketSend(socket).observe(roomName);
+        const count = alarm.textContent ? parseInt(alarm.textContent) : null;
+
+        if (0 < count && typeof count === 'number') {
+          const alarmAudio = document.createElement('iframe');
+
+          alarmAudio.className = 'smpChat_message_alarmAudio';
+          alarmAudio.src =
+            'http://localhost:5000/smpChat/sound?name=alarmSound.mp3';
+          alarmAudio.type = 'audio/mp3';
+
+          alarmAudio.setAttribute('allow', 'autoplay');
+
+          iconSection.appendChild(alarmAudio);
+        }
+
+        return;
       }
+
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const chatView = document.querySelector(`.smpChat__dialog__chatView`);
+
+          const roomName = chatView?.dataset?.id;
+
+          if (roomName) {
+            socketSend(socket).observe(roomName);
+
+            if (type === 'manager') {
+              const dialogAlarm = document.querySelector(
+                '.smpChat__dialog__msgAlarm'
+              );
+
+              if (dialogAlarm) {
+                dialogAlarm.classList.remove('view');
+              }
+            }
+          }
+        }
+      });
+
+      return;
     });
 
     observer.observe(chatView);
@@ -2635,7 +2678,7 @@
       }
     }
 
-    function icon(count) {
+    function icon(count, type) {
       const iconAlarm = document.querySelector('.smpChat__message__alarm');
 
       if (!iconAlarm || typeof count !== 'number' || count <= 0) return;
@@ -2646,7 +2689,10 @@
 
       if (alarmCount) alarmCount = parseInt(alarmCount);
 
-      if (count < alarmCount) return (iconAlarm.textContent = alarmCount);
+      if (count < alarmCount) {
+        iconAlarm.textContent = alarmCount;
+        return;
+      }
 
       iconAlarm.textContent = count;
     }
@@ -2725,6 +2771,7 @@
           if (count > 0) {
             element.textContent = count;
           } else {
+            element.textContent = count;
             element.classList.remove('view');
           }
 
