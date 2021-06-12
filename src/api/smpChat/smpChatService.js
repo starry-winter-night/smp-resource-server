@@ -2087,6 +2087,21 @@
     }
   };
 
+  const alarmSound = function messageAlarmSound(dom) {
+    const alarmIfame = document.createElement('iframe');
+
+    alarmIfame.className = 'smpChat_message_alarmAudio';
+    alarmIfame.src = 'http://localhost:5000/smpChat/sound?name=silence.mp3';
+    alarmIfame.type = 'audio/mp3';
+
+    const alarmAudio = document.createElement('audio');
+    alarmAudio.src = 'http://localhost:5000/smpChat/sound?name=alarmSound.mp3';
+    alarmAudio.type = 'audio/mp3';
+    alarmAudio.setAttribute('autoplay', true);
+    dom.appendChild(alarmIfame);
+    dom.appendChild(alarmAudio);
+  };
+
   const clickConn = (function connectServer() {
     return (socket) => {
       const checkbox =
@@ -2542,16 +2557,7 @@
         const count = alarm.textContent ? parseInt(alarm.textContent) : null;
 
         if (0 < count && typeof count === 'number') {
-          const alarmAudio = document.createElement('iframe');
-
-          alarmAudio.className = 'smpChat_message_alarmAudio';
-          alarmAudio.src =
-            'http://localhost:5000/smpChat/sound?name=alarmSound.mp3';
-          alarmAudio.type = 'audio/mp3';
-
-          alarmAudio.setAttribute('allow', 'autoplay');
-
-          iconSection.appendChild(alarmAudio);
+          alarmSound(iconSection);
         }
 
         return;
