@@ -1,33 +1,40 @@
-import Oauth from "../models/oauth";
-import jwt from "jsonwebtoken";
+import Oauth from '../models/oauth';
+import jwt from 'jsonwebtoken';
 export const tokenVerify = async (ctx, next) => {
-  const token = ctx.header.authorization.split("Bearer ")[1];
-  
-  const oauth = await Oauth.findByAccesstoken(token);
- 
-  if (!oauth) {
+  if (ctx.header.authorization) {
+    let token = ctx.header.authorization.split('Bearer ')[1];
+
+    if (!token) token = ctx.header.authorization.split('bearer ')[1];
+
+    if (!token) {
+      ctx.status = 401;
+      ctx.body = { message: 'accessToken이 존재하지 않습니다.' };
+    }
+
+    const oauth = await Oauth.findByAccesstoken(token);
+
+    if (!oauth) {
+      ctx.status = 401;
+      ctx.body = { message: '일치하는 accessToken 정보가 없습니다.' };
+    } else if (token != oauth.token.accessToken) {
+      ctx.status = 401;
+      ctx.body = { message: 'accessToken 정보가 일치하지 않습니다.' };
+    }
+    const jwtResult = jwtVerify(token);
+
+    if (!jwtResult) {
+      ctx.status = 401;
+      ctx.body = {
+        message: 'accessToken의 유효기간이 만료되었습니다.',
+        request: 'scope',
+        token: 'update',
+      };
+    }
+    await next();
+  } else {
     ctx.status = 401;
-    ctx.body = { message: "일치하는 accessToken 정보가 없습니다." };
+    ctx.body = { message: 'accessToken이 존재하지 않습니다.' };
   }
-  if (!token) {
-    ctx.status = 401;
-    ctx.body = { message: "accessToken이 존재하지 않습니다." };
-  }
-  if (token != oauth.token.accessToken) {
-  
-    ctx.status = 401;
-    ctx.body = { message: "accessToken 정보가 일치하지 않습니다." };
-  }
-  const jwtResult = jwtVerify(token);
-  if (!jwtResult) {
-    ctx.status = 401;
-    ctx.body = {
-      message: "accessToken의 유효기간이 만료되었습니다.",
-      request: "scope",
-      token: "update",
-    };
-  }
-  await next();
 };
 
 export const jwtVerify = (token) => {

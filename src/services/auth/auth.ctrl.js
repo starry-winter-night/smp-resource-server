@@ -1,6 +1,6 @@
-import Member from "../../models/member";
-import Oauth from "../../models/oauth";
-import {loadUserInfo } from "./auth.functions";
+import Member from '../../models/member';
+import Oauth from '../../models/oauth';
+import { loadUserInfo } from './auth.functions';
 
 export const scope = async (token) => {
   const oauth = await Oauth.findByAccesstoken(token);
