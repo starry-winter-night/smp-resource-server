@@ -3,10 +3,10 @@ import {
   findSameId,
   filterSmpChatData,
   saveImageFolderAndFile,
-} from './chat.functions';
-import SmpChat from '../../models/smpChat';
-import Member from '../../models/member';
-import Oauth from '../../models/oauth';
+} from './chat.functions.js';
+import SmpChat from '../../models/smpChat.js';
+import Member from '../../models/member.js';
+import Oauth from '../../models/oauth.js';
 
 export const verifyClientId = async (clientId) => {
   const member = await Member.findByClientId(clientId);

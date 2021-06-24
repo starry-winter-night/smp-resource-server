@@ -1,9 +1,10 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config({path:'/var/www/smp-resource-server/.evn'});
 import Koa from "koa";
 import Router from "koa-router";
 import bodyParser from "koa-bodyparser";
 import cors from "@koa/cors";
-import api from "./api";
+import api from "./api/index.js";
 
 const app = new Koa();
 const router = new Router();

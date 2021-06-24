@@ -1,6 +1,6 @@
 import Router from 'koa-router';
-import { scope } from '../../services/auth/auth.ctrl';
-import { tokenVerify } from '../../lib/tokenVerifyMid';
+import { scope } from '../../services/auth/auth.ctrl.js';
+import { tokenVerify } from '../../lib/tokenVerifyMid.js';
 const auth = new Router();
 
 auth.get('/scope', tokenVerify, async (ctx) => {

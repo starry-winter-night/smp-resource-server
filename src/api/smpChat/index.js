@@ -6,8 +6,9 @@ import {
   judgeUserType,
   registerManager,
   getServerState,
-} from '../../services/chat/chat.ctrl';
+} from '../../services/chat/chat.ctrl.js';
 
+const __dirname = path.resolve();
 const smpChat = new Router();
 
 smpChat.get('/image', (ctx) => {
@@ -45,7 +46,7 @@ smpChat.get('/chatService.js', async (ctx) => {
     ctx.body = setResult.message;
   }
 
-  const filename = __dirname + '/smpChatService.js';
+  const filename = __dirname + '/smpChatService.min.js';
   const data = fs.readFileSync(filename, 'utf8');
 
   ctx.type = 'text/javascript';

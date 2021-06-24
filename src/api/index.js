@@ -1,12 +1,12 @@
 import Router from "koa-router";
 // 회원정보 전달 API
-import auth from "./auth";
+import auth from "./auth/index.js";
 // 사진 전달 API
-import photo from "./photo";
+import photo from "./photo/index.js";
 // 채팅 API
-import chat from "./smpChat";
+import chat from "./smpChat/index.js";
 // 채팅 SOCKET.IO
-require("./smpChat/chatServer");
+import "./smpChat/chatServer.js";
 
 const api = new Router();
 

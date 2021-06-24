@@ -1,4 +1,4 @@
-import Oauth from '../models/oauth';
+import Oauth from '../models/oauth.js';
 import jwt from 'jsonwebtoken';
 export const tokenVerify = async (ctx, next) => {
   if (ctx.header.authorization) {

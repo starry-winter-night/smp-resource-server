@@ -1,4 +1,4 @@
-import mongoose from '../config/db';
+import mongoose from '../config/db.js';
 const { Schema } = mongoose;
 
 const authSchema = new Schema(

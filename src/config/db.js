@@ -1,4 +1,5 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config({path:'/var/www/smp-resource-server/.env'});
 import mongoose from "mongoose";
 
 mongoose

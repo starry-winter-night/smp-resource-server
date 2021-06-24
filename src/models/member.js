@@ -1,4 +1,4 @@
-import mongoose from "../config/db";
+import mongoose from "../config/db.js";
 const { Schema } = mongoose;
 
 const memberSchema = new Schema(
@@ -39,4 +39,4 @@ memberSchema.methods.serialize = function () {
   return data;
 };
 
-module.exports = mongoose.model("member", memberSchema);
+export default mongoose.model("member", memberSchema);

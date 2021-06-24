@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { httpServer } from '../../config/chatServer';
+import { httpServer } from '../../config/chatServer.js';
 import { checkDuplicateUser } from '../../services/chat/chat.functions.js';
 import {
   verifyManagerInfo,
@@ -15,7 +15,7 @@ import {
   observeMessageCheck,
   getObserveCount,
   getRoomMember,
-} from '../../services/chat/chat.ctrl';
+} from '../../services/chat/chat.ctrl.js';
 
 const io = new Server(httpServer, {
   cors: {
@@ -23,6 +23,8 @@ const io = new Server(httpServer, {
       'https://smpark.dev',
       'http://localhost:4000',
       'http://localhost:3000',
+      'https:smp-resource.link',
+      'https://test-temp-portfolio.netlify.app/',
     ],
     methods: ['GET', 'POST'],
   },
@@ -182,7 +184,7 @@ const socketReceive = function receiveSocketContact(socket) {
 
               await leaveRoomMember(socket, members.result);
             }
-          }, 5000);
+          }, 30000);
         }
       });
     },
