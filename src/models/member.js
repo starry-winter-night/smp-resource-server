@@ -1,4 +1,4 @@
-import mongoose from "../config/db.js";
+import mongoose from '../config/db.js';
 const { Schema } = mongoose;
 
 const memberSchema = new Schema(
@@ -27,10 +27,7 @@ memberSchema.statics.findById = function (id) {
 };
 
 memberSchema.statics.findByClientId = function (clientId) {
-  return this.findOne(
-    { "client.clientId": clientId },
-    { hashedPassword: false, "client.clientSecret": false }
-  );
+  return this.findOne({ 'client.clientId': clientId }, { hashedPassword: false, 'client.clientSecret': false });
 };
 memberSchema.methods.serialize = function () {
   const data = this.toJSON();
@@ -39,4 +36,4 @@ memberSchema.methods.serialize = function () {
   return data;
 };
 
-export default mongoose.model("member", memberSchema);
+export default mongoose.model('member', memberSchema);

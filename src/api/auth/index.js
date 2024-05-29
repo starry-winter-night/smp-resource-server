@@ -16,7 +16,7 @@ auth.get('/scope', tokenVerify, async (ctx) => {
   const scopeResult = await scope(token);
   const successCode = 200;
   ctx.status = successCode;
-  ctx.body = { userData: scopeResult };
+  ctx.body = { id: scopeResult.username, name: scopeResult.name, email: scopeResult.email };
 });
 
 export default auth;

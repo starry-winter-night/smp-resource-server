@@ -39,23 +39,15 @@ const authSchema = new Schema(
 );
 
 authSchema.statics.findByAccesstoken = function (token) {
-  return this.findOne(
-    { 'token.accessToken': token },
-    { 'client.clientSecret': false }
-  );
+  return this.findOne({ 'token.accessToken': token }, { 'client.clientSecret': false });
 };
 
 authSchema.statics.findByClientId = function (client_id) {
-  return this.findOne(
-    { 'client.clientId': client_id },
-    { 'client.clientSecret': false }
-  );
+  return this.findOne({ 'client.clientId': client_id }, { 'client.clientSecret': 0 });
 };
+
 authSchema.statics.findByChatApiKey = function (apiKey) {
-  return this.findOne(
-    { 'client.chatApiKey': apiKey },
-    { 'client.clientSecret': false }
-  );
+  return this.findOne({ 'client.chatApiKey': apiKey }, { 'client.clientSecret': false });
 };
 
 const Oauth = mongoose.model('oauth', authSchema);
